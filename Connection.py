@@ -99,7 +99,7 @@ class Connection:
         read_part = ",".join(self.read) if isinstance(self.read, list) else str(self.read)
         label = f"{read_part}"
         if self.write:
-            label += f" → {self.write}"
+            label += f" -> {self.write}"
         if self.move:
             label += f", {self.move}"
         return label
@@ -111,3 +111,26 @@ class Connection:
             self.write = write
         if move is not None:
             self.move = move
+
+    def is_clicked(self, pos, tolerance=8):
+        start = self.start.pos
+        end = self.end.pos
+
+        if self.start == self.end:
+            r = self.start.radius + 20
+            loop_rect = pygame.Rect(start.x - r, start.y - r * 2, r * 2, r * 2)
+            return loop_rect.collidepoint(pos)
+
+        mid = (start + end) / 2
+        direction = (end - start)
+        if direction.length() == 0:
+            return False
+        normal = pygame.Vector2(-direction.y, direction.x).normalize()
+        control = mid + normal * self.curvature
+
+        click = pygame.Vector2(pos)
+        for t in [i / 30 for i in range(31)]:
+            p = (1 - t) ** 2 * start + 2 * (1 - t) * t * control + t ** 2 * end
+            if (p - click).length() <= tolerance:
+                return True
+        return False

@@ -6,23 +6,29 @@ from MainMenu import COLORS
 from Toolbox import Toolbox
 from Grid import Grid
 from Connection import Connection
+from ConnectionWindow import ConnectionWindow
+from TuringMachine import TuringMachine
 
 class Environment:
     def __init__(self, screen):
+        self.alphabet = ['0', '1', '_']
         self.screen = screen
         self.tape = Tape(screen)
         self.running = True
         self.toolbox = Toolbox(screen, self.on_tool_selected)
         self.grid = Grid(screen)
+        self.connection_window = None
 
         self.nodes = []
         self.connections = []
+        self.TuringMachine = TuringMachine(screen, self.nodes, self.connections, self.tape)
 
         self.current_tool = None
         self.connecting_from = None
         self.mouse_pos = pygame.Vector2(0, 0)
 
     def update(self, dt):
+        self.TuringMachine.update(dt)
         self.tape.update(dt)
         self.toolbox.update(dt)
         for node in self.nodes:
@@ -45,6 +51,11 @@ class Environment:
         if self.current_tool == "connect" and self.connecting_from is not None:
             self._draw_preview_connection()
 
+        self.TuringMachine.draw()
+
+        if self.connection_window:
+            self.connection_window.draw()
+
         self.tape.draw()
         self.toolbox.draw()
 
@@ -52,6 +63,12 @@ class Environment:
         toolbox_used = self.toolbox.handle_event(event)
         if toolbox_used:
             return
+
+        if self.connection_window:
+            self.connection_window.handle_event(event)
+            return
+
+        self.TuringMachine.handle_event(event)
 
         if event.type == pygame.MOUSEMOTION:
             self.mouse_pos = pygame.Vector2(event.pos)
@@ -64,12 +81,16 @@ class Environment:
                         pos = self.grid.snap(event.pos)
                     else:
                         pos = event.pos
-                    if len(self.nodes) == 0:
+                    if self._get_node_at(pos):
+                        return
+                    if len(self.nodes) == 0 or (any(n.is_start for n in self.nodes) == False and self.current_tool == "node"):
                         new_node = Node(pos, is_start=True, is_end=False)
-                        print("Created start node (q0).")
+                        new_node.id = 0
+                        self._sync_machine()
                     else:
                         new_node = Node(pos, is_end=(self.current_tool == "end_node"))
                     self.nodes.append(new_node)
+                    self._sync_machine()
                     return
 
             elif self.current_tool == "connect":
@@ -77,18 +98,18 @@ class Environment:
                 if clicked_node:
                     if self.connecting_from is None:
                         self.connecting_from = clicked_node
-                        print(f"Starting connection from {clicked_node.id}")
                     else:
                         start_node = self.connecting_from
                         end_node = clicked_node
                         self._create_connection(start_node, end_node)
-                        print(f"Created connection: {start_node.id} -> {end_node.id}")
                         self.connecting_from = None
                     return
 
+            elif self.current_tool == "delete":
+                self._handle_delete(event.pos)
+
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             if self.connecting_from is not None:
-                print("Connection cancelled with right click.")
                 self.connecting_from = None
                 return
 
@@ -102,15 +123,48 @@ class Environment:
         return None
 
     def _create_connection(self, start_node, end_node):
+        if self._connection_exists(start_node, end_node):
+            return
         conn = Connection(start_node, end_node)
         self.connections.append(conn)
         start_node.add_connection(conn)
+        self._sync_machine()
+
+        self.connection_window = ConnectionWindow(
+            self.screen,
+            conn,
+            symbols=self.alphabet,
+            on_save=self._save_connection_logic,
+            on_cancel=lambda: self._cancel_connection_window(conn)
+        )
 
     def _connection_exists(self, start_node, end_node):
         for c in self.connections:
             if c.start == start_node and c.end == end_node:
                 return True
         return False
+
+    def _save_connection_logic(self, read, write, move):
+        if self.connection_window:
+            if not read or not move:
+                self._cancel_connection_window(self.connection_window.connection)
+                return
+            for conn in self.connections:
+                if (conn.start == self.connection_window.connection.start and
+                    conn != self.connection_window.connection and
+                    any(sym in conn.read for sym in read)):
+                    self._cancel_connection_window(self.connection_window.connection)
+                    return
+            self.connection_window.connection.update_logic(read, write, move)
+            self._sync_machine()
+            self.connection_window = None
+
+    def _cancel_connection_window(self, conn):
+        if conn in self.connections:
+            self.connections.remove(conn)
+            self._sync_machine()
+        self.connection_window = None
+
 
     def _draw_preview_connection(self):
         start = self.connecting_from.pos
@@ -130,3 +184,34 @@ class Environment:
 
         pygame.draw.lines(self.screen, (180, 180, 180), False, points, 2)
         pygame.draw.circle(self.screen, (230, 230, 230), end, 4)
+
+    def _handle_delete(self, pos):
+        node = self._get_node_at(pos)
+        if node:
+            print(f"Deleting node {node.id}")
+            self._delete_node(node)
+            self._sync_machine()
+            return
+
+        for conn in self.connections:
+            if conn.is_clicked(pos):
+                print(f"Deleting connection {conn.start.id} -> {conn.end.id}")
+                self.connections.remove(conn)
+                self._sync_machine()
+                return
+
+    def _delete_node(self, node):
+        self.nodes.remove(node)
+        if Node._id_counter > 0 and node.id != 0:
+            Node._id_counter -= 1
+            for n in self.nodes:
+                if n.id > node.id:
+                    n.id -= 1
+        self.connections = [c for c in self.connections if c.start != node and c.end != node]
+        self._sync_machine()
+
+    def _sync_machine(self):
+        self.TuringMachine.nodes = self.nodes
+        self.TuringMachine.connections = self.connections
+        if self.TuringMachine.current_node not in self.nodes and len(self.nodes) > 0:
+            self.TuringMachine.current_node = next((n for n in self.nodes if getattr(n, "is_start", False)), None)

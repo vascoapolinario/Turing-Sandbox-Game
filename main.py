@@ -5,9 +5,9 @@ from Environment import Environment
 
 pygame.init()
 
-SCREEN_WIDTH, SCREEN_HEIGHT = 1600, 900
+SCREEN_WIDTH, SCREEN_HEIGHT = 900, 600
 WINDOW_TITLE = "Turing Machine Sandbox"
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption(WINDOW_TITLE)
 
 clock = pygame.time.Clock()

@@ -66,3 +66,23 @@ class Tape:
             (center_x + 10, tri_y),
             (center_x, tri_y + 20)
         ])
+
+    def read_symbol(self):
+        return self.symbols[self.cell_index]
+
+    def write_symbol(self, symbol):
+        self.symbols[self.cell_index] = symbol
+
+    def move_left(self):
+        self.move_head(-1)
+
+    def move_right(self):
+        self.move_head(1)
+
+    def reset(self):
+        for i, s in enumerate(self.symbols):
+            if s != "_":
+                self.cell_index = i
+                break
+        self.offset = 0
+        self.target_offset = 0
