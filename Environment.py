@@ -1,5 +1,7 @@
 import pygame
 
+from Button import Button
+from Level import Level
 from Node import Node
 from Tape import Tape
 from MainMenu import COLORS
@@ -10,8 +12,17 @@ from ConnectionWindow import ConnectionWindow
 from TuringMachine import TuringMachine
 
 class Environment:
-    def __init__(self, screen):
-        self.alphabet = ['0', '1', '_']
+    def __init__(self, screen, level=None):
+        self.level = level or Level(
+            name="Sandbox",
+            type="sandbox",
+            description="Free build mode with no objective.",
+            alphabet=['0', '1', '_'],
+            objective="Experiment freely.",
+            solution={},
+
+        )
+        self.alphabet = self.level.alphabet
         self.screen = screen
         self.tape = Tape(screen)
         self.running = True
@@ -27,12 +38,27 @@ class Environment:
         self.connecting_from = None
         self.mouse_pos = pygame.Vector2(0, 0)
 
+        self.test_results = []
+        self.test_complete = False
+        self.all_passed = False
+
+        if self.level.type != "sandbox":
+            self.tape.change_tape(self.level.correct_examples[0] if self.level.correct_examples else "")
+            self.submit_button = Button(
+                "Submit",
+                (0.75, 0.10, 0.20, 0.06),
+                pygame.font.SysFont("futura", 22, bold=True),
+                self._run_level_tests
+            )
+
     def update(self, dt):
         self.TuringMachine.update(dt)
         self.tape.update(dt)
         self.toolbox.update(dt)
         keys = pygame.key.get_pressed()
         self.grid.handle_input(dt, keys)
+        if self.level.type != "sandbox":
+            self.submit_button.update_rect(self.screen.get_size())
         for node in self.nodes:
             node.update(dt) if hasattr(node, "update") else None
 
@@ -55,6 +81,11 @@ class Environment:
 
         self.TuringMachine.draw()
 
+        self._draw_level_info()
+        if self.level.type != "sandbox":
+            self._draw_level_progress()
+            self.submit_button.draw(self.screen)
+
         if self.connection_window:
             self.connection_window.draw()
 
@@ -72,6 +103,8 @@ class Environment:
 
         self.TuringMachine.handle_event(event)
         self.grid.handle_event(event)
+        if self.level.type != "sandbox":
+            self.submit_button.handle_event(event)
 
         if event.type == pygame.MOUSEMOTION:
             self.mouse_pos = pygame.Vector2(event.pos)
@@ -171,7 +204,6 @@ class Environment:
         self.connection_window = None
 
     def _draw_preview_connection(self):
-        """Draw the temporary connection line while the user is dragging."""
         if not self.connecting_from:
             return
 
@@ -224,3 +256,71 @@ class Environment:
         self.TuringMachine.connections = self.connections
         if self.TuringMachine.current_node not in self.nodes and len(self.nodes) > 0:
             self.TuringMachine.current_node = next((n for n in self.nodes if getattr(n, "is_start", False)), None)
+
+    def _draw_level_info(self):
+        font = pygame.font.SysFont("futura", 22, bold=True)
+        desc_font = pygame.font.SysFont("futura", 18)
+        name_text = font.render(self.level.name, True, COLORS["accent"])
+        desc_text = desc_font.render(self.level.description, True, COLORS["text"])
+        name_x = self.screen.get_width() - 20 - name_text.get_width()
+        desc_x = self.screen.get_width() - 20 - desc_text.get_width()
+        self.screen.blit(name_text, (name_x, 20))
+        self.screen.blit(desc_text, (desc_x, 40))
+
+    def _draw_level_progress(self):
+        if not self.level.correct_examples and not self.level.wrong_examples:
+            return
+
+        bar_x = self.screen.get_width() - 240
+        bar_y = 100
+        bar_width = 200
+        bar_height = 14
+        pygame.draw.rect(self.screen, (40, 50, 80), (bar_x, bar_y, bar_width, bar_height), border_radius=6)
+
+        if self.test_results:
+            passed = sum(1 for r in self.test_results if r)
+            pct = passed / len(self.test_results)
+            pygame.draw.rect(self.screen, (90, 200, 90), (bar_x, bar_y, bar_width * pct, bar_height), border_radius=6)
+
+        if self.test_complete:
+            font = pygame.font.SysFont("futura", 18)
+            status = "Level Passed" if self.all_passed else "Level Incomplete"
+            color = (120, 220, 120) if self.all_passed else (220, 100, 100)
+            text = font.render(status, True, color)
+            self.screen.blit(text, (bar_x, bar_y + 20))
+
+    def _run_level_tests(self):
+        if not self.level.correct_examples and not self.level.wrong_examples:
+            print("No tests for this level.")
+            return
+
+        self.test_results.clear()
+        self.test_complete = False
+        self.all_passed = False
+
+        total = len(self.level.correct_examples)
+
+        for example in self.level.correct_examples:
+            passed = self._simulate(example, should_accept=True)
+            self.test_results.append(passed)
+
+        passed = sum(1 for r in self.test_results if r)
+        self.all_passed = passed == total
+        self.test_complete = True
+        print(f"✅ {passed}/{total} tests passed.")
+
+    def _simulate(self, input_string, should_accept=True):
+        if not self.nodes or not any(n.is_start for n in self.nodes):
+            return False
+
+        self.tape.change_tape(input_string)
+        self.TuringMachine.reset()
+        self.TuringMachine.play()
+
+        for _ in range(200):
+            self.TuringMachine.step()
+            if self.TuringMachine.finished:
+                break
+        accepted = getattr(self.TuringMachine.current_node, "is_end", False)
+        print(f"Input '{input_string}' -> {'Accepted' if accepted else 'Rejected'} (Expected: {'Accept' if should_accept else 'Reject'})")
+        return accepted if should_accept else not accepted

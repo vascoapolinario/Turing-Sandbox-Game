@@ -11,18 +11,20 @@ COLORS = {
 
 class Button:
 
-    def __init__(self, text, rel_rect, font, callback):
+    def __init__(self, text, rect, font, callback):
         self.text = text
-        self.rel_rect = rel_rect
+        self.original_rect = rect
+        self.rect = pygame.Rect(0, 0, 0, 0)
         self.font = font
         self.callback = callback
-        self.rect = pygame.Rect(0, 0, 0, 0)
         self.hovered = False
+        self.update_rect(pygame.display.get_surface().get_size())
 
     def update_rect(self, screen_size):
-        sw, sh = screen_size
-        rx, ry, rw, rh = self.rel_rect
-        self.rect = pygame.Rect(int(rx * sw), int(ry * sh), int(rw * sw), int(rh * sh))
+        if isinstance(self.original_rect, tuple) and all(0 < v <= 1 for v in self.original_rect):
+            w, h = screen_size
+            rel_x, rel_y, rel_w, rel_h = self.original_rect
+            self.rect = pygame.Rect(int(w * rel_x), int(h * rel_y), int(w * rel_w), int(h * rel_h))
 
     def draw(self, screen):
         color = COLORS["hover"] if self.hovered else COLORS["button"]

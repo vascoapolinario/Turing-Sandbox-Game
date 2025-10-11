@@ -7,16 +7,18 @@ class MainMenu:
         self.title_font = pygame.font.SysFont("futura", 80, bold=True)
         self.button_font = pygame.font.SysFont("futura", 32)
         self.title_text = self.title_font.render("Turing Machine Sandbox", True, COLORS["accent"])
+        self.pressed = None
 
         self.buttons = [
-            Button("Start", (0.4, 0.5, 0.2, 0.08), self.button_font, self.start_game),
-            Button("Settings", (0.4, 0.62, 0.2, 0.08), self.button_font, self.open_settings),
-            Button("Quit", (0.4, 0.74, 0.2, 0.08), self.button_font, self.quit_game)
+            Button("Sandbox", (0.4, 0.5, 0.2, 0.08), self.button_font, self.start_game),
+            Button("Levels", (0.4, 0.62, 0.2, 0.08), self.button_font, self.open_levels),
+            Button("Settings", (0.4, 0.74, 0.2, 0.08), self.button_font, self.open_settings),
+            Button("Quit", (0.4, 0.86, 0.2, 0.08), self.button_font, self.quit_game)
         ]
 
         self.title_y_offset = 0
         self.direction = 1
-        self.start_pressed = False
+        self.pressed = ""
 
     def update(self):
         self.title_y_offset += 0.3 * self.direction
@@ -40,11 +42,13 @@ class MainMenu:
             button.handle_event(event)
 
     def start_game(self):
-        print("Starting simulation...")
-        self.start_pressed = True
+        self.pressed = "sandbox"
+
+    def open_levels(self):
+        self.pressed = "levels"
 
     def open_settings(self):
-        print("Opening settings... (TODO: implement settings menu)")
+        self.pressed = "settings"
 
     def quit_game(self):
         pygame.quit()

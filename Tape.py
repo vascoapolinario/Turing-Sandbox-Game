@@ -1,22 +1,10 @@
 import pygame
 from MainMenu import COLORS
 
-
 class Tape:
-    def __init__(self, screen, tape_string="10101", cell_count=15):
+    def __init__(self, screen, tape_string=""):
         self.screen = screen
-        self.symbols = ["_"] * ((cell_count - len(tape_string)) // 2) + list(tape_string) + ["_"] * ((cell_count - len(tape_string)) // 2)
-        self.cell_count = len(self.symbols)
-        self.cell_index_middle = self.cell_count // 2
-        for i, s in enumerate(self.symbols):
-            if s != "_":
-                self.cell_index = i
-                break
-        else:
-            self.cell_index = len(self.symbols) // 2
-
-        self.offset = 0
-        self.target_offset = 0
+        self.cell_count = len(tape_string) + 10
         self.speed = 400
 
         self.visible = False
@@ -28,6 +16,8 @@ class Tape:
         self.cell_color = (50, 70, 110)
         self.border_color = COLORS["accent"]
 
+        self.change_tape(tape_string)
+
     def show(self):
         self.visible = True
         self.target_y_offset = 0
@@ -37,22 +27,19 @@ class Tape:
         self.target_y_offset = 200
 
     def change_tape(self, tape_string):
-        self.symbols = ["_"] * ((self.cell_count - len(tape_string)) // 2) + list(tape_string) + ["_"] * ((self.cell_count - len(tape_string)) // 2)
-        for i, s in enumerate(self.symbols):
-            if s != "_":
-                self.cell_index = i
-                break
-        else:
-            self.cell_index = len(self.symbols) // 2
-        self.offset = 0
-        self.target_offset = 0
+        half = (self.cell_count - len(tape_string)) // 2
+        self.symbols = ["_"] * half + list(tape_string) + ["_"] * (self.cell_count - len(tape_string) - half)
+        self.cell_index = half
+
+        self.offset = self.cell_index * self.get_cell_width()
+        self.target_offset = self.offset
         self.hide()
 
     def move_head(self, direction):
         new_index = self.cell_index + direction
         if 0 <= new_index < self.cell_count:
             self.cell_index = new_index
-            self.target_offset += direction * self.get_cell_width()
+            self.target_offset = self.cell_index * self.get_cell_width()
 
     def get_cell_width(self):
         w, _ = self.screen.get_size()
@@ -65,7 +52,6 @@ class Tape:
             if (move_dir > 0 and self.offset > self.target_offset) or (move_dir < 0 and self.offset < self.target_offset):
                 self.offset = self.target_offset
 
-
         if abs(self.target_y_offset - self.y_offset) > 1:
             direction = 1 if self.target_y_offset > self.y_offset else -1
             self.y_offset += direction * self.slide_speed * dt
@@ -76,8 +62,8 @@ class Tape:
         w, h = self.screen.get_size()
         cell_w = self.get_cell_width()
         cell_h = h * 0.15
-        start_x = w / 2 - self.cell_index_middle * cell_w - self.offset
 
+        start_x = w / 2 - self.offset
         y = h * 0.9 + self.y_offset
 
         tape_y = y + cell_h / 2
@@ -114,10 +100,7 @@ class Tape:
         self.move_head(1)
 
     def reset(self):
-        for i, s in enumerate(self.symbols):
-            if s != "_":
-                self.cell_index = i
-                break
-        self.offset = 0
-        self.target_offset = 0
+        self.cell_index = self.symbols.index(next((s for s in self.symbols if s != "_"), "_"))
+        self.offset = self.cell_index * self.get_cell_width()
+        self.target_offset = self.offset
         self.hide()
