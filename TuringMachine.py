@@ -9,6 +9,8 @@ class TuringMachine:
         self.tape = tape
 
         self.current_node = next((n for n in nodes if getattr(n, "is_start", False)), None)
+        if self.current_node:
+            self.current_node.is_active = True
         self.running = False
         self.paused = True
         self.finished = False
@@ -48,6 +50,7 @@ class TuringMachine:
                 self.timer = 0
 
     def step(self):
+
         if not self.current_node:
             print("❌ No current node — invalid machine.")
             self.finished = True
@@ -61,6 +64,9 @@ class TuringMachine:
             if conn.start == self.current_node and current_symbol in conn.read:
                 valid_conn = conn
                 break
+
+        if self.current_node:
+            self.current_node.is_active = False
 
         if not valid_conn:
             print("❌ No valid transition found. Halting.")
@@ -78,6 +84,9 @@ class TuringMachine:
 
         self.current_node = valid_conn.end
 
+        self.current_node.is_active = True
+        self.tape.show()
+
         if getattr(self.current_node, "is_end", False):
             print("✅ Reached end state.")
             self.finished = True
@@ -92,6 +101,8 @@ class TuringMachine:
             return
         self.running = True
         self.paused = False
+        self.current_node.is_active = True
+        self.tape.show()
 
     def pause(self):
         if self.running:
@@ -99,10 +110,15 @@ class TuringMachine:
 
     def reset(self):
         self.current_node = next((n for n in self.nodes if getattr(n, "is_start", False)), None)
+        for n in self.nodes:
+            n.is_active = False
+        if self.current_node:
+            self.current_node.is_active = False
         self.tape.reset()
         self.finished = False
         self.running = False
         self.paused = True
+        self.tape.hide()
 
     def draw(self):
         sw, sh = self.screen.get_size()
@@ -153,7 +169,8 @@ class TuringMachine:
         self.buttons = {
             "play_pause": pygame.Rect(bx, by, 88, 40),
             "step": pygame.Rect(bx + spacing, by, 88, 40),
-            "reset": pygame.Rect(bx + spacing // 2, by + 58, 88, 40),
+            "reset": pygame.Rect(bx, by + 58, 88, 40),
+            "Show/Hide Tape": pygame.Rect(bx + spacing, by + 58, 120, 40),
         }
         for name, r in self.buttons.items():
             hovered = (self.hovered_button == name)
@@ -185,6 +202,11 @@ class TuringMachine:
                             self.step()
                         elif name == "reset":
                             self.reset()
+                        elif name == "Show/Hide Tape":
+                            if self.tape.visible:
+                                self.tape.hide()
+                            else:
+                                self.tape.show()
                         return
 
     def _draw_button(self, rect, name, hovered):
@@ -194,6 +216,9 @@ class TuringMachine:
         elif name == "step":
             label = "Step"
             base = (100, 130, 220)
+        elif name == "Show/Hide Tape":
+            label = "Hide Tape" if self.tape.visible else "Show Tape"
+            base = (120, 100, 200)
         else:
             label = "Reset"
             base = (200, 90, 90)

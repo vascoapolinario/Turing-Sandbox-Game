@@ -4,9 +4,6 @@ from MainMenu import COLORS
 
 class ConnectionWindow:
     def __init__(self, screen, connection, symbols, on_save, on_cancel):
-        """
-        symbols: list[str] — allowed tape symbols for read/write (e.g. ['0', '1', '_'])
-        """
         self.screen = screen
         self.connection = connection
         self.symbols = symbols
@@ -176,7 +173,6 @@ class ConnectionWindow:
         self.screen.blit(label, (rect.centerx - label.get_width() // 2, rect.centery - label.get_height() // 2))
 
     def _draw_gradient_rect(self, rect, top_color, bottom_color):
-        """Draws a vertical gradient inside a rect."""
         gradient_surface = pygame.Surface((rect.width, rect.height))
         for y in range(rect.height):
             ratio = y / rect.height

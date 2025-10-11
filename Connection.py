@@ -18,40 +18,41 @@ class Connection:
         self.arrow_size = 10
         self.font = pygame.font.SysFont("futura", 18, bold=True)
 
-    def draw(self, screen):
-        start = self.start.pos
-        end = self.end.pos
+    def draw(self, screen, grid):
+        start_world = self.start.pos
+        end_world = self.end.pos
 
         if self.start == self.end:
-            self._draw_self_loop(screen)
+            self._draw_self_loop(screen, grid)
         else:
-            self._draw_curve(screen, start, end)
+            self._draw_curve(screen, grid, start_world, end_world)
 
-    def _draw_curve(self, screen, start, end):
-        mid = (start + end) / 2
-        direction = (end - start)
+    def _draw_curve(self, screen, grid, start_world, end_world):
+        mid = (start_world + end_world) / 2
+        direction = (end_world - start_world)
         if direction.length() == 0:
             return
         normal = pygame.Vector2(-direction.y, direction.x).normalize()
-        control = mid + normal * self.curvature
+        control_world = mid + normal * self.curvature
 
-        points = []
+        world_points = []
         for t in [i / 30 for i in range(31)]:
-            p = (1 - t) ** 2 * start + 2 * (1 - t) * t * control + t ** 2 * end
-            points.append(p)
+            p = (1 - t) ** 2 * start_world + 2 * (1 - t) * t * control_world + t ** 2 * end_world
+            world_points.append(p)
 
-        pygame.draw.lines(screen, self.color, False, points, self.thickness)
+        screen_points = [grid.world_to_screen(p) for p in world_points]
 
+        pygame.draw.lines(screen, self.color, False, screen_points, self.thickness)
 
-        mid_index = len(points) // 2
-        prev_mid = points[mid_index - 1]
-        mid_point = points[mid_index]
+        mid_index = len(screen_points) // 2
+        prev_mid = screen_points[mid_index - 1]
+        mid_point = screen_points[mid_index]
         self._draw_arrowhead(screen, mid_point, prev_mid, color=(180, 220, 255))
 
         label_text = self._make_label_text()
         if label_text:
             label_surface = self.font.render(label_text, True, COLORS["text"])
-            offset_dir = (control - mid_point)
+            offset_dir = (grid.world_to_screen(control_world) - mid_point)
             if offset_dir.length() > 0:
                 offset = offset_dir.normalize() * 20
             else:
@@ -59,26 +60,28 @@ class Connection:
             label_rect = label_surface.get_rect(center=(mid_point + offset))
             screen.blit(label_surface, label_rect)
 
-    def _draw_self_loop(self, screen):
-        pos = self.start.pos
+    def _draw_self_loop(self, screen, grid):
+        pos_world = self.start.pos
         r = self.start.radius
         offset = 25
         gap = 10
 
-        start = pygame.Vector2(pos.x, pos.y - r)
+        start = pygame.Vector2(pos_world.x, pos_world.y - r)
         top = pygame.Vector2(start.x, start.y - offset)
         left = pygame.Vector2(start.x - r - gap, start.y - offset)
-        bottom = pygame.Vector2(left.x, pos.y - r / 2)
-        points = [start, top, left, bottom, pos]
+        bottom = pygame.Vector2(left.x, pos_world.y - r / 2)
+        world_points = [start, top, left, bottom, pos_world]
 
-        pygame.draw.lines(screen, self.color, False, points, self.thickness)
+        screen_points = [grid.world_to_screen(p) for p in world_points]
+
+        pygame.draw.lines(screen, self.color, False, screen_points, self.thickness)
 
         label_text = self._make_label_text()
-        label_surface = self.font.render(label_text, True, COLORS["text"])
-        label_rect = label_surface.get_rect(
-            center=(left.x + (start.x - left.x) / 2, top.y - 15)
-        )
-        screen.blit(label_surface, label_rect)
+        if label_text:
+            label_surface = self.font.render(label_text, True, COLORS["text"])
+            sx, sy = grid.world_to_screen(pygame.Vector2(left.x + (start.x - left.x) / 2, top.y - 15))
+            label_rect = label_surface.get_rect(center=(sx, sy))
+            screen.blit(label_surface, label_rect)
 
     def _draw_arrowhead(self, screen, prev, end, color=None):
         if color is None:
@@ -112,25 +115,27 @@ class Connection:
         if move is not None:
             self.move = move
 
-    def is_clicked(self, pos, tolerance=8):
-        start = self.start.pos
-        end = self.end.pos
+    def is_clicked(self, pos, grid, tolerance=8):
+        start_world = self.start.pos
+        end_world = self.end.pos
 
         if self.start == self.end:
             r = self.start.radius + 20
-            loop_rect = pygame.Rect(start.x - r, start.y - r * 2, r * 2, r * 2)
-            return loop_rect.collidepoint(pos)
+            loop_rect = pygame.Rect(
+                start_world.x - r, start_world.y - r * 2, r * 2, r * 2
+            )
+            return loop_rect.collidepoint(grid.screen_to_world(pos))
 
-        mid = (start + end) / 2
-        direction = (end - start)
+        mid = (start_world + end_world) / 2
+        direction = (end_world - start_world)
         if direction.length() == 0:
             return False
         normal = pygame.Vector2(-direction.y, direction.x).normalize()
         control = mid + normal * self.curvature
 
-        click = pygame.Vector2(pos)
+        click_world = grid.screen_to_world(pos)
         for t in [i / 30 for i in range(31)]:
-            p = (1 - t) ** 2 * start + 2 * (1 - t) * t * control + t ** 2 * end
-            if (p - click).length() <= tolerance:
+            p = (1 - t) ** 2 * start_world + 2 * (1 - t) * t * control + t ** 2 * end_world
+            if (p - click_world).length() <= tolerance / grid.zoom:
                 return True
         return False

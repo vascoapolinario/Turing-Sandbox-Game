@@ -31,6 +31,8 @@ class Environment:
         self.TuringMachine.update(dt)
         self.tape.update(dt)
         self.toolbox.update(dt)
+        keys = pygame.key.get_pressed()
+        self.grid.handle_input(dt, keys)
         for node in self.nodes:
             node.update(dt) if hasattr(node, "update") else None
 
@@ -45,9 +47,9 @@ class Environment:
         self.grid.draw()
 
         for conn in self.connections:
-            conn.draw(self.screen)
+            conn.draw(self.screen, self.grid)
         for node in self.nodes:
-            node.draw(self.screen)
+            node.draw(self.screen, self.grid)
         if self.current_tool == "connect" and self.connecting_from is not None:
             self._draw_preview_connection()
 
@@ -69,6 +71,7 @@ class Environment:
             return
 
         self.TuringMachine.handle_event(event)
+        self.grid.handle_event(event)
 
         if event.type == pygame.MOUSEMOTION:
             self.mouse_pos = pygame.Vector2(event.pos)
@@ -76,16 +79,14 @@ class Environment:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.current_tool in ("node", "end_node"):
                 if not self.toolbox.toggle_button.collidepoint(event.pos):
-                    snapped_pos = getattr(self, "grid", None)
-                    if snapped_pos:
-                        pos = self.grid.snap(event.pos)
-                    else:
-                        pos = event.pos
-                    if self._get_node_at(pos):
+                    world_pos = self.grid.screen_to_world(event.pos)
+                    pos = self.grid.snap(world_pos)
+                    if self._get_node_at(pos, world_space=True):
                         return
                     if len(self.nodes) == 0 or (any(n.is_start for n in self.nodes) == False and self.current_tool == "node"):
                         new_node = Node(pos, is_start=True, is_end=False)
                         new_node.id = 0
+                        print("Created node at world:", pos, "screen:", self.grid.world_to_screen(pos))
                         self._sync_machine()
                     else:
                         new_node = Node(pos, is_end=(self.current_tool == "end_node"))
@@ -116,10 +117,14 @@ class Environment:
         for node in self.nodes:
             node.handle_event(event)
 
-    def _get_node_at(self, pos):
+    def _get_node_at(self, pos, world_space=False):
         for node in reversed(self.nodes):
-            if node.is_inside(pos):
-                return node
+            if world_space:
+                if node.is_inside(pos):
+                    return node
+            else:
+                if node.is_inside(pos, self.grid):
+                    return node
         return None
 
     def _create_connection(self, start_node, end_node):
@@ -165,13 +170,16 @@ class Environment:
             self._sync_machine()
         self.connection_window = None
 
-
     def _draw_preview_connection(self):
-        start = self.connecting_from.pos
-        end = self.mouse_pos
+        """Draw the temporary connection line while the user is dragging."""
+        if not self.connecting_from:
+            return
 
-        mid = (start + end) / 2
-        direction = (end - start)
+        start_screen = self.grid.world_to_screen(self.connecting_from.pos)
+        end_screen = pygame.Vector2(self.mouse_pos)
+
+        mid = (start_screen + end_screen) / 2
+        direction = (end_screen - start_screen)
         if direction.length() == 0:
             return
         normal = pygame.Vector2(-direction.y, direction.x).normalize()
@@ -179,11 +187,11 @@ class Environment:
 
         points = []
         for t in [i / 20 for i in range(21)]:
-            p = (1 - t) ** 2 * start + 2 * (1 - t) * t * control + t ** 2 * end
+            p = (1 - t) ** 2 * start_screen + 2 * (1 - t) * t * control + t ** 2 * end_screen
             points.append(p)
 
         pygame.draw.lines(self.screen, (180, 180, 180), False, points, 2)
-        pygame.draw.circle(self.screen, (230, 230, 230), end, 4)
+        pygame.draw.circle(self.screen, (230, 230, 230), end_screen, 4)
 
     def _handle_delete(self, pos):
         node = self._get_node_at(pos)
@@ -194,7 +202,7 @@ class Environment:
             return
 
         for conn in self.connections:
-            if conn.is_clicked(pos):
+            if conn.is_clicked(pos, self.grid):
                 print(f"Deleting connection {conn.start.id} -> {conn.end.id}")
                 self.connections.remove(conn)
                 self._sync_machine()
@@ -202,11 +210,12 @@ class Environment:
 
     def _delete_node(self, node):
         self.nodes.remove(node)
-        if Node._id_counter > 0 and node.id != 0:
+        if Node._id_counter > 0:
             Node._id_counter -= 1
-            for n in self.nodes:
-                if n.id > node.id:
-                    n.id -= 1
+            if node.id != 0:
+                for n in self.nodes:
+                    if n.id > node.id:
+                        n.id -= 1
         self.connections = [c for c in self.connections if c.start != node and c.end != node]
         self._sync_machine()
 

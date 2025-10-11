@@ -14,13 +14,39 @@ class Tape:
                 break
         else:
             self.cell_index = len(self.symbols) // 2
+
         self.offset = 0
         self.target_offset = 0
         self.speed = 400
 
+        self.visible = False
+        self.y_offset = 200
+        self.target_y_offset = 200
+        self.slide_speed = 600
+
         self.font = pygame.font.SysFont("futura", 48)
         self.cell_color = (50, 70, 110)
         self.border_color = COLORS["accent"]
+
+    def show(self):
+        self.visible = True
+        self.target_y_offset = 0
+
+    def hide(self):
+        self.visible = False
+        self.target_y_offset = 200
+
+    def change_tape(self, tape_string):
+        self.symbols = ["_"] * ((self.cell_count - len(tape_string)) // 2) + list(tape_string) + ["_"] * ((self.cell_count - len(tape_string)) // 2)
+        for i, s in enumerate(self.symbols):
+            if s != "_":
+                self.cell_index = i
+                break
+        else:
+            self.cell_index = len(self.symbols) // 2
+        self.offset = 0
+        self.target_offset = 0
+        self.hide()
 
     def move_head(self, direction):
         new_index = self.cell_index + direction
@@ -39,12 +65,20 @@ class Tape:
             if (move_dir > 0 and self.offset > self.target_offset) or (move_dir < 0 and self.offset < self.target_offset):
                 self.offset = self.target_offset
 
+
+        if abs(self.target_y_offset - self.y_offset) > 1:
+            direction = 1 if self.target_y_offset > self.y_offset else -1
+            self.y_offset += direction * self.slide_speed * dt
+            if (direction > 0 and self.y_offset > self.target_y_offset) or (direction < 0 and self.y_offset < self.target_y_offset):
+                self.y_offset = self.target_y_offset
+
     def draw(self):
         w, h = self.screen.get_size()
         cell_w = self.get_cell_width()
         cell_h = h * 0.15
         start_x = w / 2 - self.cell_index_middle * cell_w - self.offset
-        y = h * 0.9
+
+        y = h * 0.9 + self.y_offset
 
         tape_y = y + cell_h / 2
         pygame.draw.rect(self.screen, (20, 30, 50), (0, tape_y - 5, w, 10))
@@ -86,3 +120,4 @@ class Tape:
                 break
         self.offset = 0
         self.target_offset = 0
+        self.hide()
