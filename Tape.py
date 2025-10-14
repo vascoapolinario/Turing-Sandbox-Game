@@ -33,13 +33,18 @@ class Tape:
 
         self.offset = self.cell_index * self.get_cell_width()
         self.target_offset = self.offset
-        self.hide()
 
     def move_head(self, direction):
         new_index = self.cell_index + direction
-        if 0 <= new_index < self.cell_count:
-            self.cell_index = new_index
-            self.target_offset = self.cell_index * self.get_cell_width()
+
+        if new_index < 0:
+            self.symbols.insert(0, "_")
+            new_index = 0
+        elif new_index >= len(self.symbols):
+            self.symbols.append("_")
+
+        self.cell_index = max(0, min(new_index, len(self.symbols) - 1))
+        self.target_offset = self.cell_index * self.get_cell_width()
 
     def get_cell_width(self):
         w, _ = self.screen.get_size()
@@ -104,3 +109,6 @@ class Tape:
         self.offset = self.cell_index * self.get_cell_width()
         self.target_offset = self.offset
         self.hide()
+
+    def get_tape_string(self):
+        return "".join(s for s in self.symbols if s != "_")

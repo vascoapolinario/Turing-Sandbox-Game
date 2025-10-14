@@ -64,7 +64,6 @@ class LevelSelectMenu:
 
     def _select_level(self, level):
         self.selected_level = level
-        print(f"Selected {level.name}")
 
     def _confirm_play(self):
         if self.selected_level:
@@ -128,6 +127,7 @@ class LevelSelectMenu:
             name = self.font_medium.render(self.selected_level.name, True, COLORS["accent"])
             desc = self._wrap_text(self.selected_level.description, info_rect.width - 40)
             obj = self._wrap_text("Objective: " + self.selected_level.objective, info_rect.width - 40)
+            detailed = self._wrap_text(self.selected_level.detailedDescription, info_rect.width - 40)
 
             self.screen.blit(name, (info_rect.x + 20, info_rect.y + 20))
 
@@ -139,6 +139,12 @@ class LevelSelectMenu:
 
             y_offset += 10
             for line in obj:
+                line_surface = self.font_small.render(line, True, COLORS["text"])
+                self.screen.blit(line_surface, (info_rect.x + 20, y_offset))
+                y_offset += 25
+
+            y_offset += 10
+            for line in detailed:
                 line_surface = self.font_small.render(line, True, COLORS["text"])
                 self.screen.blit(line_surface, (info_rect.x + 20, y_offset))
                 y_offset += 25

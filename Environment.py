@@ -1,8 +1,12 @@
+import json
+
 import pygame
 
+import save_manager
 from Button import Button
 from Level import Level
 from Node import Node
+from SaveMenu import SaveMenu
 from Tape import Tape
 from MainMenu import COLORS
 from Toolbox import Toolbox
@@ -10,6 +14,7 @@ from Grid import Grid
 from Connection import Connection
 from ConnectionWindow import ConnectionWindow
 from TuringMachine import TuringMachine
+from PauseMenu import PauseMenu
 
 class Environment:
     def __init__(self, screen, level=None):
@@ -17,9 +22,11 @@ class Environment:
             name="Sandbox",
             type="sandbox",
             description="Free build mode with no objective.",
+            detailedDescription="Have fun!",
             alphabet=['0', '1', '_'],
             objective="Experiment freely.",
             solution={},
+            mode="accept",
 
         )
         self.alphabet = self.level.alphabet
@@ -42,8 +49,29 @@ class Environment:
         self.test_complete = False
         self.all_passed = False
 
+        self.paused = False
+        self.back_to_menu = False
+        self.pause_menu = PauseMenu(
+            self.screen,
+            on_resume=self._resume,
+            on_save_load=self._save_machine,
+            on_exit_to_menu=self._return_to_menu,
+            on_quit=self._quit_game,
+            level=self.level
+        )
+
+        self.save_menu = SaveMenu(
+            self.screen,
+            turing_machine=self.TuringMachine,
+            on_close=self._resume,
+            on_load=self._load_named_machine
+        )
+
         if self.level.type != "sandbox":
-            self.tape.change_tape(self.level.correct_examples[0] if self.level.correct_examples else "")
+            if self.level.mode == "accept":
+                self.tape.change_tape(self.level.correct_examples[0] if self.level.correct_examples else "")
+            elif self.level.mode == "transform":
+                self.tape.change_tape(self.level.transform_tests[0]["input"] if self.level.transform_tests else "")
             self.submit_button = Button(
                 "Submit",
                 (0.75, 0.10, 0.20, 0.06),
@@ -56,14 +84,18 @@ class Environment:
         self.tape.update(dt)
         self.toolbox.update(dt)
         keys = pygame.key.get_pressed()
-        self.grid.handle_input(dt, keys)
+        if not self.paused and not self.pause_menu.visible:
+            self.grid.handle_input(dt, keys)
         if self.level.type != "sandbox":
-            self.submit_button.update_rect(self.screen.get_size())
+            self.submit_button.update_rect_withscale(self.screen.get_size())
         for node in self.nodes:
             node.update(dt) if hasattr(node, "update") else None
 
+        if self.paused:
+            self.pause_menu.update()
+            return
+
     def on_tool_selected(self, tool_name):
-        print(f"Tool selected: {tool_name}")
         self.current_tool = tool_name
         self.connecting_from = None
         self.toolbox.draw()
@@ -71,6 +103,9 @@ class Environment:
     def draw(self):
         self.screen.fill(COLORS["background"])
         self.grid.draw()
+        screen_w, _ = self.screen.get_size()
+        if self.level.type != "sandbox":
+            self.submit_button.rect.topleft = (screen_w - 220, 60)
 
         for conn in self.connections:
             conn.draw(self.screen, self.grid)
@@ -92,7 +127,22 @@ class Environment:
         self.tape.draw()
         self.toolbox.draw()
 
+        if self.paused and not self.save_menu.visible:
+            self.pause_menu.draw()
+
+        if self.save_menu.visible:
+            self.save_menu.draw()
+            self.save_menu.update()
+
     def handle_event(self, event):
+        if self.save_menu.visible:
+            self.save_menu.handle_event(event)
+            return
+        elif self.paused and event.type != pygame.KEYDOWN:
+            self.pause_menu.handle_event(event)
+            return
+
+
         toolbox_used = self.toolbox.handle_event(event)
         if toolbox_used:
             return
@@ -119,7 +169,6 @@ class Environment:
                     if len(self.nodes) == 0 or (any(n.is_start for n in self.nodes) == False and self.current_tool == "node"):
                         new_node = Node(pos, is_start=True, is_end=False)
                         new_node.id = 0
-                        print("Created node at world:", pos, "screen:", self.grid.world_to_screen(pos))
                         self._sync_machine()
                     else:
                         new_node = Node(pos, is_end=(self.current_tool == "end_node"))
@@ -146,6 +195,15 @@ class Environment:
             if self.connecting_from is not None:
                 self.connecting_from = None
                 return
+
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and not self.save_menu.visible:
+            if self.paused:
+                self.paused = False
+                self.pause_menu.hide()
+            else:
+                self.paused = True
+                self.pause_menu.show()
+            return
 
         for node in self.nodes:
             node.handle_event(event)
@@ -228,14 +286,12 @@ class Environment:
     def _handle_delete(self, pos):
         node = self._get_node_at(pos)
         if node:
-            print(f"Deleting node {node.id}")
             self._delete_node(node)
             self._sync_machine()
             return
 
         for conn in self.connections:
             if conn.is_clicked(pos, self.grid):
-                print(f"Deleting connection {conn.start.id} -> {conn.end.id}")
                 self.connections.remove(conn)
                 self._sync_machine()
                 return
@@ -268,7 +324,9 @@ class Environment:
         self.screen.blit(desc_text, (desc_x, 40))
 
     def _draw_level_progress(self):
-        if not self.level.correct_examples and not self.level.wrong_examples:
+        if self.level.mode == "accept" and not (self.level.correct_examples or self.level.wrong_examples):
+            return
+        if self.level.mode == "transform" and not getattr(self.level, "transform_tests", []):
             return
 
         bar_x = self.screen.get_width() - 240
@@ -290,27 +348,35 @@ class Environment:
             self.screen.blit(text, (bar_x, bar_y + 20))
 
     def _run_level_tests(self):
-        if not self.level.correct_examples and not self.level.wrong_examples:
-            print("No tests for this level.")
+        if self.level.mode == "accept" and not (self.level.correct_examples or self.level.wrong_examples):
+            return
+        if self.level.mode == "transform" and not getattr(self.level, "transform_tests", []):
             return
 
         self.test_results.clear()
         self.test_complete = False
         self.all_passed = False
+        if self.level.mode == "accept":
 
-        total = len(self.level.correct_examples)
+            for example in self.level.wrong_examples:
+                result = self._simulate(example, should_accept=False)
+                self.test_results.append(result)
 
-        for example in self.level.correct_examples:
-            passed = self._simulate(example, should_accept=True)
-            self.test_results.append(passed)
+            for example in self.level.correct_examples:
+                result = self._simulate(example, should_accept=True)
+                self.test_results.append(result)
+        else:
+            for case in self.level.transform_tests:
+                self.test_results.append(self._simulate_transform(case["input"], case["output"]))
 
+        total = len(self.test_results)
         passed = sum(1 for r in self.test_results if r)
-        self.all_passed = passed == total
+        self.all_passed = (total > 0 and passed == total)
         self.test_complete = True
-        print(f"✅ {passed}/{total} tests passed.")
 
     def _simulate(self, input_string, should_accept=True):
         if not self.nodes or not any(n.is_start for n in self.nodes):
+            accepted = getattr(self.TuringMachine.current_node, "is_end", False)
             return False
 
         self.tape.change_tape(input_string)
@@ -322,5 +388,37 @@ class Environment:
             if self.TuringMachine.finished:
                 break
         accepted = getattr(self.TuringMachine.current_node, "is_end", False)
-        print(f"Input '{input_string}' -> {'Accepted' if accepted else 'Rejected'} (Expected: {'Accept' if should_accept else 'Reject'})")
         return accepted if should_accept else not accepted
+
+    def _resume(self):
+        self.paused = False
+        self.pause_menu.hide()
+
+    def _save_machine(self):
+        self.pause_menu.hide()
+        self.save_menu.show()
+
+    def _load_named_machine(self, name):
+        data = save_manager.load_machine(name)
+        self.TuringMachine.deserialize(data)
+
+    def _return_to_menu(self):
+        self.back_to_menu = True
+        self.paused = False
+        self.pause_menu.hide()
+
+    def _quit_game(self):
+        pygame.quit()
+
+    def _simulate_transform(self, input_string, expected_output):
+        self.tape.change_tape(input_string)
+        self.TuringMachine.reset()
+        self.TuringMachine.play()
+
+        for _ in range(400):
+            self.TuringMachine.step()
+            if self.TuringMachine.finished:
+                break
+
+        result = self.tape.get_tape_string().strip("_")
+        return result == expected_output

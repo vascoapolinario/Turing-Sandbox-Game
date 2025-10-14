@@ -52,7 +52,6 @@ class TuringMachine:
     def step(self):
 
         if not self.current_node:
-            print("❌ No current node — invalid machine.")
             self.finished = True
             return
 
@@ -60,7 +59,6 @@ class TuringMachine:
 
         valid_conn = None
         for conn in self.connections:
-            print(f"  Checking transition from q{conn.start.id} to q{conn.end.id} for symbols {conn.read}")
             if conn.start == self.current_node and current_symbol in conn.read:
                 valid_conn = conn
                 break
@@ -68,8 +66,7 @@ class TuringMachine:
         if self.current_node:
             self.current_node.is_active = False
 
-        if not valid_conn:
-            print("❌ No valid transition found. Halting.")
+        if not valid_conn and self.current_node.is_end == False:
             self.finished = True
             self.running = False
             return
@@ -88,16 +85,13 @@ class TuringMachine:
         self.tape.show()
 
         if getattr(self.current_node, "is_end", False):
-            print("✅ Reached end state.")
             self.finished = True
             self.running = False
 
     def play(self):
         if not self.current_node:
-            print("❌ No start node defined.")
             return
         if self.finished:
-            print("⚠️ Machine finished. Reset first.")
             return
         self.running = True
         self.paused = False
@@ -118,7 +112,6 @@ class TuringMachine:
         self.finished = False
         self.running = False
         self.paused = True
-        self.tape.hide()
 
     def draw(self):
         sw, sh = self.screen.get_size()
@@ -229,3 +222,59 @@ class TuringMachine:
 
         text = self.small_font.render(label, True, (255, 255, 255))
         self.screen.blit(text, (rect.centerx - text.get_width() // 2, rect.centery - text.get_height() // 2))
+
+    def serialize(self, name):
+        return {
+            "name": name,
+            "nodes": [
+                {
+                    "id": n.id,
+                    "x": n.pos.x,
+                    "y": n.pos.y,
+                    "is_start": getattr(n, "is_start", False),
+                    "is_end": getattr(n, "is_end", False)
+                }
+                for n in self.nodes
+            ],
+            "connections": [
+                {
+                    "start": c.start.id,
+                    "end": c.end.id,
+                    "read": c.read,
+                    "write": c.write,
+                    "move": c.move
+                }
+                for c in self.connections
+            ]
+        }
+
+    def deserialize(self, data):
+        from Node import Node
+        from Connection import Connection
+
+        self.nodes.clear()
+        self.connections.clear()
+
+        id_to_node = {}
+        for ndata in data.get("nodes", []):
+            node = Node(
+                pos=pygame.Vector2(ndata["x"], ndata["y"]),
+                is_start=ndata["is_start"],
+                is_end=ndata["is_end"]
+            )
+            node.id = ndata["id"]
+            self.nodes.append(node)
+            id_to_node[node.id] = node
+
+        for cdata in data.get("connections", []):
+            start = id_to_node.get(cdata["start"])
+            end = id_to_node.get(cdata["end"])
+            if not start or not end:
+                continue
+            conn = Connection(start, end)
+            conn.update_logic(cdata["read"], cdata["write"], cdata["move"])
+            self.connections.append(conn)
+
+        self.current_node = next((n for n in self.nodes if getattr(n, "is_start", False)), None)
+        self.finished = False
+        self.running = False

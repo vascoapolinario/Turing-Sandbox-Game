@@ -59,6 +59,11 @@ def main():
             env.update(dt)
             env.draw()
 
+            if env.back_to_menu:
+                menu = MainMenu(screen)
+                env = None
+                state = "main_menu"
+
         pygame.display.flip()
 
     pygame.quit()

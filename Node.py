@@ -58,7 +58,7 @@ class Node:
         screen.blit(text, text_rect)
 
         if self.is_end:
-            pygame.draw.circle(screen, self.text_color, draw_pos, self.radius - 5, 2)
+            pygame.draw.circle(screen, self.text_color, draw_pos, radius - 5, 2)
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:

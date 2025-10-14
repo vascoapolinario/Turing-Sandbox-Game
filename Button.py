@@ -21,14 +21,39 @@ class Button:
         self.update_rect(pygame.display.get_surface().get_size())
 
     def update_rect(self, screen_size):
-        if isinstance(self.original_rect, tuple) and all(0 < v <= 1 for v in self.original_rect):
-            w, h = screen_size
-            rel_x, rel_y, rel_w, rel_h = self.original_rect
-            self.rect = pygame.Rect(int(w * rel_x), int(h * rel_y), int(w * rel_w), int(h * rel_h))
+        w, h = screen_size
+        rx, ry, rw, rh = self.original_rect
+
+        if all(0 < val <= 1 for val in (rx, ry, rw, rh)):
+            x = int(rx * w)
+            y = int(ry * h)
+            width = int(rw * w)
+            height = int(rh * h)
+        else:
+            x, y, width, height = int(rx), int(ry), int(rw), int(rh)
+
+        self.rect = pygame.Rect(x, y, width, height)
+
+    def update_rect_withscale(self, screen_size):
+        w, h = screen_size
+        rx, ry, rw, rh = self.original_rect
+
+        if all(0 < rx <= 1 for rx in (rx, ry)):
+            x = int(rx * w)
+            y = int(ry * h)
+        else:
+            x, y = int(rx), int(ry)
+
+        width = int(rw if rw > 1 else rw * 900)
+        height = int(rh if rh > 1 else rh * 600)
+
+        self.rect = pygame.Rect(x, y, width, height)
+
 
     def draw(self, screen):
         color = COLORS["hover"] if self.hovered else COLORS["button"]
         pygame.draw.rect(screen, color, self.rect, border_radius=12)
+        pygame.draw.rect(screen, (70, 90, 120), self.rect, 2, border_radius=12)
 
         label = self.font.render(self.text, True, COLORS["text"])
         label_rect = label.get_rect(center=self.rect.center)
