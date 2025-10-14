@@ -408,7 +408,10 @@ class Environment:
         self.pause_menu.hide()
 
     def _quit_game(self):
-        pygame.quit()
+        self.paused = False
+        self.pause_menu.hide()
+        pygame.event.post(pygame.event.Event(pygame.QUIT))
+
 
     def _simulate_transform(self, input_string, expected_output):
         self.tape.change_tape(input_string)
