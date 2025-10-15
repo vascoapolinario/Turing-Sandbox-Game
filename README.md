@@ -1,6 +1,9 @@
 # Turing Sandbox Game
 A game made with python using pygame to build and simulate turing machines
 
+Available for testing at: [https://vascoapolinario.github.io/Turing-Sandbox-Game](https://vascoapolinario.github.io/Turing-Sandbox-Game/)
+
+
 ## Game Preview
 In this game preview you can see a level being solved, the level expects the user to build a turing machine that turns all zeros to ones and ones to zeros
 
