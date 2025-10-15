@@ -95,7 +95,7 @@ class TuringMachine:
         if not self.current_node:
             return
         if self.finished:
-            return
+            self.reset()
         self.running = True
         self.paused = False
         self.current_node.is_active = True
@@ -139,9 +139,14 @@ class TuringMachine:
         if self.current_width <= 4:
             return
 
-        panel_x = sw - self.current_width - self.toggle_rect.width - 8
         panel_y = sh / 2 - self.height / 2
-        rect = pygame.Rect(panel_x, panel_y, self.current_width, self.height)
+        target_x = sw - self.target_width - self.toggle_rect.width - 8
+        start_x = sw
+
+        open_ratio = self.current_width / self.target_width if self.target_width > 0 else 0
+        panel_x = start_x - (start_x - target_x) * open_ratio
+
+        rect = pygame.Rect(panel_x, panel_y, self.target_width, self.height)
 
         shadow = rect.move(-5, 5)
         pygame.draw.rect(self.screen, (0, 0, 0, 100), shadow, border_radius=16)

@@ -21,6 +21,8 @@ class SaveMenu:
 
         self.close_button = Button("Back", (0.05, 0.1, 0.1, 0.07), self.small, self.close)
         self.new_button = Button("+ New Save", (0.80, 0.1, 0.15, 0.07), self.small, self.new_save_prompt)
+        self.prev_button = Button("< Prev", (0.30, 0.88, 0.15, 0.07), self.small, self.prev_page)
+        self.next_button = Button("Next >", (0.55, 0.88, 0.15, 0.07), self.small, self.next_page)
 
         self.refresh()
 
@@ -43,12 +45,23 @@ class SaveMenu:
         self.input_active = True
         self.input_text = ""
 
+    def prev_page(self):
+        if self.page > 0:
+            self.page -= 1
+
+    def next_page(self):
+        total_pages = max(1, (len(self.saves) - 1) // self.per_page + 1)
+        if self.page < total_pages - 1:
+            self.page += 1
+
     def update(self):
         if not self.visible:
             return
         screen_size = self.screen.get_size()
         self.close_button.update_rect(screen_size)
         self.new_button.update_rect(screen_size)
+        self.prev_button.update_rect(screen_size)
+        self.next_button.update_rect(screen_size)
 
     def handle_event(self, event):
         if not self.visible:
@@ -71,6 +84,8 @@ class SaveMenu:
 
         self.close_button.handle_event(event)
         self.new_button.handle_event(event)
+        self.prev_button.handle_event(event)
+        self.next_button.handle_event(event)
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             x, y = event.pos
@@ -112,6 +127,13 @@ class SaveMenu:
 
         self.close_button.draw(self.screen)
         self.new_button.draw(self.screen)
+        self.prev_button.draw(self.screen)
+        self.next_button.draw(self.screen)
+
+        total_pages = max(1, (len(self.saves) - 1) // self.per_page + 1)
+        page_label = self.small.render(f"Page {self.page + 1}/{total_pages}", True, COLORS["accent"])
+        self.screen.blit(page_label,
+                         (self.screen.get_width() / 2 - page_label.get_width() / 2, self.screen.get_height() * 0.89))
 
         start_idx = self.page * self.per_page
         for i, save in enumerate(self.saves[start_idx : start_idx + self.per_page]):
