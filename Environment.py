@@ -58,6 +58,7 @@ class Environment:
             on_resume=self._resume,
             on_save_load=self._save_machine,
             on_exit_to_menu=self._return_to_menu,
+            on_clear=self._clear_space,
             on_quit=self._quit_game,
             level=self.level
         )
@@ -395,6 +396,7 @@ class Environment:
         elif self.level.mode == "transform":
             self.tape.change_tape(self.level.transform_tests[0]["input"] if self.level.transform_tests else "")
         self.TuringMachine.play()
+        self.TuringMachine.open = True
 
     def _simulate(self, input_string, should_accept=True):
         if not self.nodes or not any(n.is_start for n in self.nodes):
@@ -453,3 +455,19 @@ class Environment:
     def load_solution(self, solution):
         Node.id_counter = 0
         self.TuringMachine.deserialize(solution)
+
+    def _clear_space(self):
+        self.nodes.clear()
+        self.connections.clear()
+        Node._id_counter = 0
+        self.TuringMachine.reset()
+        self.TuringMachine.nodes = self.nodes
+        self.TuringMachine.connections = self.connections
+        self.TuringMachine.current_node = None
+        self.TuringMachine.playing = False
+        self.TuringMachine.open = False
+        self.test_results.clear()
+        self.test_complete = False
+        self.all_passed = False
+        self.paused = False
+        self.pause_menu.hide()

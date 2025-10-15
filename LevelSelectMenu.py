@@ -75,7 +75,7 @@ class LevelSelectMenu:
 
     def _select_type(self, type):
         self.selected_type = type
-        self.selected_level = None
+        self.selected_level = self.level_groups[type][0]
         self._build_level_buttons()
 
     def _select_level(self, level):

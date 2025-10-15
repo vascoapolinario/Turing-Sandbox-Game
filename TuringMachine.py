@@ -58,6 +58,11 @@ class TuringMachine:
             self.finished = True
             return
 
+        if self.current_node and getattr(self.current_node, "is_end", False):
+            self.finished = True
+            self.running = False
+            return
+
         current_symbol = self.tape.read_symbol()
 
         valid_conn = None

@@ -39,6 +39,11 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    if state == "level_select":
+                        state = "main_menu"
+                        menu = MainMenu(screen)
             if state == "main_menu":
                 menu.handle_event(event)
             elif state == "level_select":

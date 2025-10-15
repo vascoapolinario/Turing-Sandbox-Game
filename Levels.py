@@ -85,8 +85,8 @@ LEVELS = [
         alphabet=["0", "1", "_"],
         objective="Accept if the count of '0's is even, reject otherwise.",
         mode="accept",
-        correct_examples=["1100","1", "11", "111", "00", "11", "101", "1100", "1001", "0110"],
-        wrong_examples=["0", "10", "01", "000", "100", "010", "001", "1110", "1010", "1101"]
+        correct_examples=["1100","1", "11", "111", "00", "11", "1010", "1100", "1001", "0110"],
+        wrong_examples=["0", "10", "01", "000", "1110", "1101", "1010101", "00000"]
     ),
     Level(
         name="Transforming: Flip 0s and 1s",
@@ -107,16 +107,6 @@ LEVELS = [
         objective="Transform the binary number by adding 1.",
         mode="transform",
         transform_tests= [ {"input": "101", "output": "110"} , {"input": "111", "output": "1000"}, {"input": "0", "output": "1"}, {"input": "1101", "output": "1110"}, {"input": "10011", "output": "10100"} ]
-    ),
-    Level(
-        name="Transforming: Functions",
-        type = "Medium",
-        description="Given a binary word, output only the most used character, incase of a tie output 0.",
-        detailedDescription="Turing machine reads a binary string and outputs the character ('0' or '1') that appears most frequently in the input. Incase of a tie, it should output '0'. For example, it should transform '1100' to '0', '1111000' to '1', and '10100' to '0'.",
-        alphabet=["0", "1", "_"],
-        objective="Output the most frequent character, or '0' in case of a tie.",
-        mode="transform",
-        transform_tests= [ {"input": "1100", "output": "0"} , {"input": "11100", "output": "1"}, {"input": "1010101", "output": "1"}, {"input": "1111", "output": "1"}, {"input": "000", "output": "0"}, {"input": "101010", "output": "0"} ]
     ),
     Level(
         name="N repetitions",
@@ -141,13 +131,23 @@ LEVELS = [
         wrong_examples=["0", "1", "10", "11", "01", "0001111", "00111", "0011", "001", "1100", "111000", "00011111"]
     ),
     Level(
-        name="Transforming: Reverse String",
+        name="Transforming: Functions",
         type = "Hard",
-        description="Reverse the input string.",
-        detailedDescription="Turing machine reverses the input string. For example, it should transform 'abcde' to 'edcba', 'dab' to 'bad', the logic is simple but it requires alot of states.",
-        alphabet=["a", "b", "c", "d", "e", "_"],
-        objective="Reverse the input string.",
+        description="Given a binary word, output only the most used character, incase of a tie output 0.",
+        detailedDescription="Turing machine reads a binary string and outputs the character ('0' or '1') that appears most frequently in the input. Incase of a tie, it should output '0'. For example, it should transform '1100' to '0', '1111000' to '1', and '10100' to '0'.",
+        alphabet=["0", "1", "_"],
+        objective="Output the most frequent character, or '0' in case of a tie.",
         mode="transform",
-        transform_tests= [ {"input": "abc", "output": "cba"} , {"input": "bad", "output": "dab"}, {"input": "deeb", "output": "beed"}, {"input": "dada", "output": "adad"}, {"input": "ada", "output": "ada"} ]
+        transform_tests= [ {"input": "1100", "output": "0"} , {"input": "11100", "output": "1"}, {"input": "1010101", "output": "1"}, {"input": "1111", "output": "1"}, {"input": "000", "output": "0"}, {"input": "101010", "output": "0"} ]
     ),
+    Level(
+        name="Summing Binaries",
+        type = "Hard",
+        description="Given two binary numbers separated by a S, output their sum.",
+        detailedDescription="Turing machine reads a binary string containing two binary numbers separated by the character 'S' and outputs their sum as a binary number. For example, it should transform '101S10' to '111', '11S1' to '100', and '0S0' to '0'.",
+        alphabet=["0", "1", "S", "_"],
+        objective="Output the sum of the two binary numbers.",
+        mode="transform",
+        transform_tests= [ {"input": "101S10", "output": "111"} , {"input": "11S1", "output": "100"}, {"input": "0S0", "output": "0"}, {"input": "111S111", "output": "1110"}, {"input": "1001S110", "output": "1111"} ]
+    )
 ]
