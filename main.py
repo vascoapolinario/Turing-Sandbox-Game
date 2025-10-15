@@ -1,16 +1,20 @@
+import os
 import platform
+import sys
 
 import pygame
-import sys
 from MainMenu import MainMenu
 from Environment import Environment
 from LevelSelectMenu import LevelSelectMenu
+import asyncio
 
 pygame.init()
 import ctypes
 
-SCREEN_WIDTH, SCREEN_HEIGHT = 900, 600
+SCREEN_WIDTH, SCREEN_HEIGHT = 1600, 1000
 WINDOW_TITLE = "Turing Machine Sandbox"
+if os.path.exists("Logo2.png"):
+    pygame.display.set_icon(pygame.image.load("Logo2.png"))
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
 
 if platform.system() == "Windows":
@@ -26,7 +30,7 @@ pygame.display.set_caption(WINDOW_TITLE)
 clock = pygame.time.Clock()
 
 
-def main():
+async def main():
     menu = MainMenu(screen)
     env = None
     level_menu = None
@@ -83,10 +87,11 @@ def main():
                 state = "main_menu"
 
         pygame.display.flip()
+        await asyncio.sleep(0)
 
     pygame.quit()
     sys.exit()
 
 
-if __name__ == "__main__":
-    main()
+
+asyncio.run(main())

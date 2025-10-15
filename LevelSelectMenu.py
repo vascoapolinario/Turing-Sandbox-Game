@@ -42,7 +42,10 @@ class LevelSelectMenu:
         self._build_level_buttons()
 
         self.level_to_start = None
-        self.progress = load_progress()
+        try:
+            self.progress = load_progress()
+        except Exception as ex:
+            self.progress = {}
 
     def _build_type_buttons(self):
         self.type_buttons.clear()

@@ -1,7 +1,12 @@
 import os, json
+import platform
+
 
 def get_save_dir():
-    base = os.path.expanduser("~/Documents")
+    if platform.system() == "Emscripten":
+        base = "/saves"
+    else:
+        base = os.path.expanduser("~/Documents")
     path = os.path.join(base, "Turing Sandbox Saves")
     os.makedirs(path, exist_ok=True)
     return path
@@ -42,7 +47,12 @@ def delete_progress():
         os.remove(path)
 
 def get_progress_path():
-    base = os.path.expanduser("~\Documents\Turing Sandbox Saves\progress")
+    if platform.system() == "Emscripten":
+        base = "/saves"
+    else:
+        base = os.path.expanduser("~\Documents\Turing Sandbox Saves\progress")
+
+    os.makedirs(base, exist_ok=True)
     path = os.path.join(base, "turing_sandbox_progress.json")
     if not os.path.exists(path):
         with open(path, "w", encoding="utf-8") as f:
