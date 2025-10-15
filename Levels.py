@@ -9,7 +9,7 @@ LEVELS = [
         alphabet=["0", "1", "_"],
         objective="Accept all binary words except the empty word.",
         mode="accept",
-        correct_examples=["1", "0"],
+        correct_examples=["1", "0", "1100", "101", "111", "000", "1001", "0110"],
         wrong_examples=[""]
     ),
     Level(
@@ -63,7 +63,7 @@ LEVELS = [
         alphabet=["0", "1", "_"],
         objective="Accept if the input reads the same forwards and backwards.",
         mode="accept",
-        correct_examples=["0110","", "0", "1", "00", "11", "101", "010", "111", "000", "1001",],
+        correct_examples=["0110","", "0", "1", "00", "11", "101", "010", "111", "000", "1001"],
         wrong_examples=["01", "10", "001", "110", "100", "011", "1010", "1100"]
     ),
     Level(
@@ -117,6 +117,28 @@ LEVELS = [
         objective="Output the most frequent character, or '0' in case of a tie.",
         mode="transform",
         transform_tests= [ {"input": "1100", "output": "0"} , {"input": "11100", "output": "1"}, {"input": "1010101", "output": "1"}, {"input": "1111", "output": "1"}, {"input": "000", "output": "0"}, {"input": "101010", "output": "0"} ]
+    ),
+    Level(
+        name="N repetitions",
+        type="Medium",
+        description="Accept strings of the form 0^n1^n (n 0s followed by n 1s).",
+        detailedDescription="Turing machine accepts strings that consist of '0's followed by '1's, where the number of '0's is equal to the number of '1's. For example, it should accept '0011', '000111', and '', while rejecting strings like '0001111', '1100', '00011111', etc.",
+        alphabet=["0", "1", "_"],
+        objective="Accept if the input is of the form 0^n1^n.",
+        mode="accept",
+        correct_examples=["000111", "", "01", "0011", "00001111", "0000011111"],
+        wrong_examples=["0", "1", "10", "11", "0001111", "00111", "001", "1100", "111000", "00011111"]
+    ),
+    Level(
+        name="N repetitions and M repetitions",
+        type="Medium",
+        description="Accept strings of the form 0^n1^m (n 0s followed by m 1s). where m = 2*n",
+        detailedDescription="Turing machine accepts strings that consist of '0's followed by '1's, where the number of '1's is exactly two times the number of '0's. For example, it should accept '000111111', '011', and '', while rejecting strings like '00111', '1100', '00011111', etc.",
+        alphabet=["0", "1", "_"],
+        objective="Accept if the input is of the form 0^n1^m where m = 2*n.",
+        mode="accept",
+        correct_examples=["000111111", "", "011", "001111", "000111111", "000011111111", "000001111111111"],
+        wrong_examples=["0", "1", "10", "11", "01", "0001111", "00111", "0011", "001", "1100", "111000", "00011111"]
     ),
     Level(
         name="Transforming: Reverse String",

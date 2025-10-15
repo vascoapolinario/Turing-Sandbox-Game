@@ -4,7 +4,7 @@ import pygame
 from Levels import LEVELS
 from Button import Button, COLORS
 from collections import defaultdict
-from save_manager import load_progress, is_level_complete, get_level_solution
+from save_manager import load_progress, is_level_complete, get_level_solution, delete_progress
 
 class LevelSelectMenu:
     def __init__(self, screen):
@@ -16,21 +16,27 @@ class LevelSelectMenu:
         self.level_groups = defaultdict(list)
         for level in LEVELS:
             self.level_groups[level.type].append(level)
-
         self.selected_type = list(self.level_groups.keys())[0]
-        self.selected_level = None
+        self.selected_level = list(self.level_groups[self.selected_type])[0]
         self.level_buttons = []
         self.type_buttons = []
 
-        self.play_button = Button("Play Level", (0.65, 0.88, 0.25, 0.08), self.font_medium, self._confirm_play)
+        self.play_button = Button("Play Level", (0.35, 0.88, 0.57, 0.08), self.font_medium, self._confirm_play)
 
         self.solution_button = Button(
             "See Solution",
-            (0.65, 0.68, 0.25, 0.08),
+            (0.65, 0.74, 0.25, 0.08),
             self.font_medium,
             self._see_solution
         )
         self.solution_to_start = [False, None]
+
+        self.resetAllProgress_button = Button(
+            "Reset All Progress",
+            (0.05, 0.04, 0.22, 0.08),
+            self.font_medium,
+            lambda: (self.progress.clear(), delete_progress(), self._build_type_buttons(), self._build_level_buttons())
+        )
 
         self._build_type_buttons()
         self._build_level_buttons()
@@ -87,6 +93,7 @@ class LevelSelectMenu:
         if self.selected_level and is_level_complete(self.selected_level.name):
             self.solution_button.handle_event(event)
         self.play_button.handle_event(event)
+        self.resetAllProgress_button.handle_event(event)
 
     def update(self):
         w, h = self.screen.get_size()
@@ -113,13 +120,13 @@ class LevelSelectMenu:
         left_rect = pygame.Rect(0, 0, w * 0.3, h)
         pygame.draw.rect(self.screen, (25, 30, 55), left_rect)
         pygame.draw.rect(self.screen, COLORS["accent"], left_rect, 2)
-        pygame.draw.line(self.screen, COLORS["accent"], (left_rect.right, 0), (left_rect.right, h), 2)
+        pygame.draw.line(self.screen, COLORS["background"], (left_rect.right, 0), (left_rect.right, h), 2)
 
-        spacing = 20
-        for i in range(0, h, spacing):
-            pygame.draw.line(self.screen, (40, 50, 80), (0, i), (left_rect.right, i), 1)
-        for i in range(0, left_rect.width, spacing):
-            pygame.draw.line(self.screen, (40, 50, 80), (i, 0), (i, h), 1)
+        #spacing = 20
+        #for i in range(0, h, spacing):
+        #    pygame.draw.line(self.screen, (40, 50, 80), (0, i), (left_rect.right, i), 1)
+        #for i in range(0, left_rect.width, spacing):
+        #    pygame.draw.line(self.screen, (40, 50, 80), (i, 0), (i, h), 1)
 
         for btn in self.type_buttons:
             levels = self.level_groups[btn.text]
@@ -128,7 +135,7 @@ class LevelSelectMenu:
 
             pygame.draw.rect(self.screen, color, btn.rect.inflate(10, 10), border_radius=12)
             if btn.text == self.selected_type:
-                pygame.draw.rect(self.screen, COLORS["accent"], btn.rect.inflate(14, 14), 2, border_radius=11)
+                pygame.draw.rect(self.screen, COLORS["accent"], btn.rect.inflate(14, 14), 2, border_radius=14)
 
             btn.draw(self.screen)
 
@@ -186,6 +193,8 @@ class LevelSelectMenu:
                 y_offset += 25
 
         self.play_button.draw(self.screen)
+        self.resetAllProgress_button.update_rect((w, h))
+        self.resetAllProgress_button.draw(self.screen)
 
     def _wrap_text(self, text, max_width):
         words = text.split()

@@ -15,6 +15,7 @@ from Connection import Connection
 from ConnectionWindow import ConnectionWindow
 from TuringMachine import TuringMachine
 from PauseMenu import PauseMenu
+from TutorialHelper import TutorialHelper
 
 class Environment:
     def __init__(self, screen, level=None):
@@ -80,12 +81,18 @@ class Environment:
                 self._run_level_tests
             )
 
+        self.tutorial = None
+        if self.level.type == "Tutorial":
+            self.tutorial = TutorialHelper(screen, self.level.name)
+
     def update(self, dt):
         self.TuringMachine.update(dt)
         if self.TuringMachine.alphabet != self.alphabet:
             self.TuringMachine.alphabet = self.alphabet
         self.tape.update(dt)
         self.toolbox.update(dt)
+        if self.tutorial:
+            self.tutorial.update(self.nodes, self.connections, self.test_complete)
         keys = pygame.key.get_pressed()
         if not self.paused and not self.pause_menu.visible:
             self.grid.handle_input(dt, keys)
@@ -128,6 +135,8 @@ class Environment:
             self.connection_window.draw()
 
         self.tape.draw()
+        if self.tutorial:
+            self.tutorial.draw()
         self.toolbox.draw()
 
         if self.paused and not self.save_menu.visible:
@@ -332,7 +341,7 @@ class Environment:
         if self.level.mode == "transform" and not getattr(self.level, "transform_tests", []):
             return
 
-        bar_x = self.screen.get_width() - 240
+        bar_x = self.screen.get_width() - 230
         bar_y = 100
         bar_width = 200
         bar_height = 14
@@ -379,6 +388,13 @@ class Environment:
             self.level.solution = self.TuringMachine.serialize(self.level.name)
             save_manager.mark_level_complete(self.level.name, self.level.solution)
         self.test_complete = True
+
+        self.TuringMachine.reset()
+        if self.level.mode == "accept":
+            self.tape.change_tape(self.level.correct_examples[0])
+        elif self.level.mode == "transform":
+            self.tape.change_tape(self.level.transform_tests[0]["input"] if self.level.transform_tests else "")
+        self.TuringMachine.play()
 
     def _simulate(self, input_string, should_accept=True):
         if not self.nodes or not any(n.is_start for n in self.nodes):

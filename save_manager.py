@@ -36,6 +36,11 @@ def delete_machine(name):
     if os.path.exists(path):
         os.remove(path)
 
+def delete_progress():
+    path = get_progress_path()
+    if os.path.exists(path):
+        os.remove(path)
+
 def get_progress_path():
     base = os.path.expanduser("~\Documents\Turing Sandbox Saves\progress")
     path = os.path.join(base, "turing_sandbox_progress.json")

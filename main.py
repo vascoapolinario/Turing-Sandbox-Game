@@ -1,3 +1,5 @@
+import platform
+
 import pygame
 import sys
 from MainMenu import MainMenu
@@ -5,10 +7,20 @@ from Environment import Environment
 from LevelSelectMenu import LevelSelectMenu
 
 pygame.init()
+import ctypes
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 900, 600
 WINDOW_TITLE = "Turing Machine Sandbox"
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+
+if platform.system() == "Windows":
+    try:
+        hwnd = pygame.display.get_wm_info().get("window")
+        if hwnd:
+            ctypes.windll.user32.ShowWindow(hwnd, 3)
+    except Exception as e:
+        print("Could not maximize window:", e)
+
 pygame.display.set_caption(WINDOW_TITLE)
 
 clock = pygame.time.Clock()
@@ -18,7 +30,6 @@ def main():
     menu = MainMenu(screen)
     env = None
     level_menu = None
-    current_level = None
     state = "main_menu"
 
     running = True
