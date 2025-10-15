@@ -82,6 +82,8 @@ class Environment:
 
     def update(self, dt):
         self.TuringMachine.update(dt)
+        if self.TuringMachine.alphabet != self.alphabet:
+            self.TuringMachine.alphabet = self.alphabet
         self.tape.update(dt)
         self.toolbox.update(dt)
         keys = pygame.key.get_pressed()
@@ -389,6 +391,7 @@ class Environment:
             if self.TuringMachine.finished:
                 break
         accepted = getattr(self.TuringMachine.current_node, "is_end", False)
+        #print("Input: ", input_string, " Accepted: ", accepted, " Expected: ", should_accept)
         return accepted if should_accept else not accepted
 
     def _resume(self):

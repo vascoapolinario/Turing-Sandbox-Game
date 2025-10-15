@@ -41,7 +41,7 @@ LEVELS = [
         alphabet=["0", "1", "_"],
         objective="Reject any input containing '001'.",
         mode="accept",
-        correct_examples=["0", "1", "00", "01", "10", "11", "000", "010", "100", "101", "110", "111"],
+        correct_examples=["110","0", "1", "00", "01", "10", "11", "000", "010", "100", "101", "111"],
         wrong_examples=["001", "1001", "0001", "0010", "101001"]
     ),
     Level(
@@ -52,7 +52,7 @@ LEVELS = [
         alphabet=["0", "1", "_"],
         objective="Accept if there are exactly three '1's in the input.",
         mode="accept",
-        correct_examples=["111", "1011", "000110001", "100000000101", "110001", "010101", "0111", "111000"],
+        correct_examples=["1011","111", "000110001", "100000000101", "110001", "010101", "0111", "111000"],
         wrong_examples=["", "0", "1", "11", "1111", "000", "1000111", "0001", "1010", "1100", "0011", "0110"]
     ),
     Level(
@@ -63,7 +63,7 @@ LEVELS = [
         alphabet=["0", "1", "_"],
         objective="Accept if the input reads the same forwards and backwards.",
         mode="accept",
-        correct_examples=["", "0", "1", "00", "11", "101", "010", "111", "000", "1001", "0110"],
+        correct_examples=["0110","", "0", "1", "00", "11", "101", "010", "111", "000", "1001",],
         wrong_examples=["01", "10", "001", "110", "100", "011", "1010", "1100"]
     ),
     Level(

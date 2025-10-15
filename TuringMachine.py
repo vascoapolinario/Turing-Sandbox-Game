@@ -7,6 +7,9 @@ class TuringMachine:
         self.nodes = nodes
         self.connections = connections
         self.tape = tape
+        self.input_active = False
+        self.input_text = ""
+        self.alphabet = ['0', '1', '_']
 
         self.current_node = next((n for n in nodes if getattr(n, "is_start", False)), None)
         if self.current_node:
@@ -164,12 +167,29 @@ class TuringMachine:
             "step": pygame.Rect(bx + spacing, by, 88, 40),
             "reset": pygame.Rect(bx, by + 58, 88, 40),
             "Show/Hide Tape": pygame.Rect(bx + spacing, by + 58, 120, 40),
+            "Test Word": pygame.Rect(bx, by + 100, 188, 40),
         }
         for name, r in self.buttons.items():
             hovered = (self.hovered_button == name)
             self._draw_button(r, name, hovered)
 
+        if self.input_active:
+            self._draw_input_box()
+
     def handle_event(self, event):
+        if self.input_active:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    self.tape.change_tape(self.input_text)
+                    self.input_active = False
+                elif event.key == pygame.K_ESCAPE:
+                    self.input_active = False
+                elif event.key == pygame.K_BACKSPACE:
+                    self.input_text = self.input_text[:-1]
+                elif event.unicode in self.alphabet and len(self.input_text) < 30:
+                    self.input_text += event.unicode
+            return
+
         if event.type == pygame.MOUSEMOTION:
             self.hovered_button = None
             self.toggle_hovered = self.toggle_rect and self.toggle_rect.collidepoint(event.pos)
@@ -200,6 +220,10 @@ class TuringMachine:
                                 self.tape.hide()
                             else:
                                 self.tape.show()
+                        elif name == "Test Word":
+                            self.input_active = True
+                            self.input_text = ""
+                            return
                         return
 
     def _draw_button(self, rect, name, hovered):
@@ -212,6 +236,9 @@ class TuringMachine:
         elif name == "Show/Hide Tape":
             label = "Hide Tape" if self.tape.visible else "Show Tape"
             base = (120, 100, 200)
+        elif name == "Test Word":
+            label = "Set Tape Word"
+            base = (90, 160, 220)
         else:
             label = "Reset"
             base = (200, 90, 90)
@@ -278,3 +305,20 @@ class TuringMachine:
         self.current_node = next((n for n in self.nodes if getattr(n, "is_start", False)), None)
         self.finished = False
         self.running = False
+
+    def _draw_input_box(self):
+        w, h = self.screen.get_size()
+        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 120))
+        self.screen.blit(overlay, (0, 0))
+
+        box = pygame.Rect(w / 2 - 180, h / 2 - 30, 360, 60)
+        pygame.draw.rect(self.screen, (40, 60, 100), box, border_radius=12)
+        pygame.draw.rect(self.screen, COLORS["accent"], box, 2, border_radius=12)
+
+        label = self.small_font.render(f"Enter tape word (symbols: {', '.join(self.alphabet)}):", True,
+                                       COLORS["accent"])
+        self.screen.blit(label, (box.x, box.y - 30))
+
+        txt = self.small_font.render(self.input_text + "|", True, COLORS["text"])
+        self.screen.blit(txt, (box.x + 10, box.y + 18))
