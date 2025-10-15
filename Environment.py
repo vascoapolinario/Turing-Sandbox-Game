@@ -38,6 +38,7 @@ class Environment:
         self.connection_window = None
 
         self.nodes = []
+        Node._id_counter = 0
         self.connections = []
         self.TuringMachine = TuringMachine(screen, self.nodes, self.connections, self.tape)
 
@@ -400,6 +401,7 @@ class Environment:
 
     def _load_named_machine(self, name):
         data = save_manager.load_machine(name)
+        Node._id_counter = 0
         self.TuringMachine.deserialize(data)
 
     def _return_to_menu(self):
