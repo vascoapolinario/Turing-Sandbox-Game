@@ -53,6 +53,8 @@ def main():
             if level_menu.level_to_start:
                 current_level = level_menu.level_to_start
                 env = Environment(screen, level=current_level)
+                if level_menu.solution_to_start[0]:
+                    env.load_solution(level_menu.solution_to_start[1])
                 state = "environment"
 
         elif state == "environment":

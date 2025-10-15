@@ -375,6 +375,9 @@ class Environment:
         total = len(self.test_results)
         passed = sum(1 for r in self.test_results if r)
         self.all_passed = (total > 0 and passed == total)
+        if self.all_passed and self.level.type != "sandbox":
+            self.level.solution = self.TuringMachine.serialize(self.level.name)
+            save_manager.mark_level_complete(self.level.name, self.level.solution)
         self.test_complete = True
 
     def _simulate(self, input_string, should_accept=True):
@@ -430,3 +433,7 @@ class Environment:
 
         result = self.tape.get_tape_string().strip("_")
         return result == expected_output
+
+    def load_solution(self, solution):
+        Node.id_counter = 0
+        self.TuringMachine.deserialize(solution)

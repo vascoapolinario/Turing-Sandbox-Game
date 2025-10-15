@@ -4,6 +4,7 @@ import pygame
 from Levels import LEVELS
 from Button import Button, COLORS
 from collections import defaultdict
+from save_manager import load_progress, is_level_complete, get_level_solution
 
 class LevelSelectMenu:
     def __init__(self, screen):
@@ -23,10 +24,19 @@ class LevelSelectMenu:
 
         self.play_button = Button("Play Level", (0.65, 0.88, 0.25, 0.08), self.font_medium, self._confirm_play)
 
+        self.solution_button = Button(
+            "See Solution",
+            (0.65, 0.68, 0.25, 0.08),
+            self.font_medium,
+            self._see_solution
+        )
+        self.solution_to_start = [False, None]
+
         self._build_type_buttons()
         self._build_level_buttons()
 
         self.level_to_start = None
+        self.progress = load_progress()
 
     def _build_type_buttons(self):
         self.type_buttons.clear()
@@ -74,6 +84,8 @@ class LevelSelectMenu:
             button.handle_event(event)
         for button in self.level_buttons:
             button.handle_event(event)
+        if self.selected_level and is_level_complete(self.selected_level.name):
+            self.solution_button.handle_event(event)
         self.play_button.handle_event(event)
 
     def update(self):
@@ -109,25 +121,49 @@ class LevelSelectMenu:
         for i in range(0, left_rect.width, spacing):
             pygame.draw.line(self.screen, (40, 50, 80), (i, 0), (i, h), 1)
 
-
         for btn in self.type_buttons:
+            levels = self.level_groups[btn.text]
+            completed = all(is_level_complete(lvl.name) for lvl in levels)
+            color = (60, 180, 100) if completed else (180, 80, 80)
+
+            pygame.draw.rect(self.screen, color, btn.rect.inflate(10, 10), border_radius=12)
             if btn.text == self.selected_type:
-                pygame.draw.rect(self.screen, (90, 150, 255), btn.rect.inflate(10, 10), border_radius=12)
+                pygame.draw.rect(self.screen, COLORS["accent"], btn.rect.inflate(14, 14), 2, border_radius=11)
+
             btn.draw(self.screen)
 
         for btn in self.level_buttons:
+            level = next((lvl for lvl in self.level_groups[self.selected_type]
+                          if str(self.level_groups[self.selected_type].index(lvl) + 1) == btn.text), None)
+            if level:
+                completed = is_level_complete(level.name)
+                if completed:
+                    pygame.draw.rect(self.screen, (60, 180, 100), btn.rect.inflate(10, 10), border_radius=10)
+                else:
+                    pygame.draw.rect(self.screen, (180, 80, 80), btn.rect.inflate(10, 10), border_radius=10)
+
+                if self.selected_level == level:
+                    pygame.draw.rect(self.screen, COLORS["accent"], btn.rect.inflate(14, 14), 2, border_radius=12)
             btn.draw(self.screen)
 
         info_rect = pygame.Rect(w * 0.33, h * 0.38, w * 0.62, h * 0.45)
         pygame.draw.rect(self.screen, (25, 30, 55), info_rect, border_radius=16)
         pygame.draw.rect(self.screen, COLORS["accent"], info_rect, 2, border_radius=16)
 
+        base_height = 720
+        scale = max(1, min(2.0, h / base_height))
+        self.font_large = pygame.font.SysFont("futura", max(30, int(40 * scale)), bold=True)
+        self.font_medium = pygame.font.SysFont("futura", max(25, int(28 * scale)))
+        self.font_small = pygame.font.SysFont("futura", max(15, int(20 * scale)))
 
         if self.selected_level:
             name = self.font_medium.render(self.selected_level.name, True, COLORS["accent"])
             desc = self._wrap_text(self.selected_level.description, info_rect.width - 40)
             obj = self._wrap_text("Objective: " + self.selected_level.objective, info_rect.width - 40)
             detailed = self._wrap_text(self.selected_level.detailedDescription, info_rect.width - 40)
+            if is_level_complete(self.selected_level.name):
+                self.solution_button.update_rect((w, h))
+                self.solution_button.draw(self.screen)
 
             self.screen.blit(name, (info_rect.x + 20, info_rect.y + 20))
 
@@ -164,3 +200,10 @@ class LevelSelectMenu:
         if line:
             lines.append(line)
         return lines
+
+    def _see_solution(self):
+        if self.selected_level and is_level_complete(self.selected_level.name):
+            solution_data = get_level_solution(self.selected_level.name)
+            if solution_data:
+                self.solution_to_start = [True, solution_data]
+            self.level_to_start = self.selected_level

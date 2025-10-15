@@ -18,12 +18,12 @@ LEVELS = [
         description="Learn the core mechanics of building a Turing Machine that transforms input.",
         detailedDescription="Build a Turing machine that transforms all binary elements to blank. So for example 101 becomes ___",
         alphabet=["0", "1", "_"],
-        objective="Accept if the length of the input is even, reject otherwise.",
+        objective="Turn all 0s and 1s to _",
         mode="transform",
         transform_tests=[ {"input": "101", "output": ""}, {"input": "1", "output": ""}, {"input": "0", "output": ""}, {"input": "", "output": ""} ]
     ),
     Level(
-        name="Level 1: Accept 101",
+        name="Accept 101",
         type = "Starter",
         description="Build a Turing Machine that only accepts the string 101.",
         detailedDescription="Turing machine accepts string 101 while rejecting all others, for example: 0, 1, 10..etc",
@@ -34,7 +34,7 @@ LEVELS = [
         wrong_examples=["0", "1", "10", "11", "100", "110", "111", "000", "001", "010", "1011", "1010", "0101", "1010101"]
     ),
     Level(
-        name="Level 2: No 001",
+        name="No 001",
         type = "Starter",
         description="Accept binary strings that do not contain the substring 001.",
         detailedDescription="Turing machine accepts any binary string that does not contain the substring '001'. For example, it should accept '0', '1', '00', '01', '10', '11', '000', '010', etc., but reject '001', '1001', '0001', etc.",
@@ -45,7 +45,7 @@ LEVELS = [
         wrong_examples=["001", "1001", "0001", "0010", "101001"]
     ),
     Level(
-        name="Level 3: Count 1s",
+        name="Count 1s",
         type = "Starter",
         description="Accept strings with exactly three 1s.",
         detailedDescription="Turing machine accepts strings with exactly three 1s while rejecting all others. For example, it should accept '111', '1011', '000110001', etc., but reject '', '0', '1', '11', '1111', etc.",
@@ -56,7 +56,7 @@ LEVELS = [
         wrong_examples=["", "0", "1", "11", "1111", "000", "1000111", "0001", "1010", "1100", "0011", "0110"]
     ),
     Level(
-        name="Level 4: Palindrome",
+        name="Palindrome",
         type = "Starter",
         description="Accept binary palindromes.",
         detailedDescription="Turing machine accepts binary palindromes such as '', '0', '1', '00', '11', '101', '010', etc., while rejecting non-palindromic strings like '01', '10', '001', etc.",
@@ -67,7 +67,7 @@ LEVELS = [
         wrong_examples=["01", "10", "001", "110", "100", "011", "1010", "1100"]
     ),
     Level(
-        name="Level 5: Letters",
+        name="Letters",
         type = "Starter",
         description="Accept strings that contain the letter A followed by B.",
         detailedDescription="Turing machine accepts strings where 'A' appears before 'B', such as 'AB', 'ACB', 'AAB', etc., while rejecting strings where 'B' appears before 'A' or where 'A' is absent, such as 'BA', 'BCA', 'CBA', etc.",
@@ -78,7 +78,7 @@ LEVELS = [
         wrong_examples=["BA", "BCA", "CBA", "BBB"]
     ),
     Level(
-        name="Level 6: Even 0s",
+        name="Even 0s",
         type = "Starter",
         description="Accept binary strings with an even number of 0s.",
         detailedDescription="Turing machine accepts binary strings that contain an even number of '0's, such as '11', '00', '1100', '1010', etc., while rejecting strings with an odd number of '0's like '0', '10', '01', '000', etc.",
@@ -107,6 +107,16 @@ LEVELS = [
         objective="Transform the binary number by adding 1.",
         mode="transform",
         transform_tests= [ {"input": "101", "output": "110"} , {"input": "111", "output": "1000"}, {"input": "0", "output": "1"}, {"input": "1101", "output": "1110"}, {"input": "10011", "output": "10100"} ]
+    ),
+    Level(
+        name="Transforming: Functions",
+        type = "Medium",
+        description="Given a binary word, output only the most used character, incase of a tie output 0.",
+        detailedDescription="Turing machine reads a binary string and outputs the character ('0' or '1') that appears most frequently in the input. Incase of a tie, it should output '0'. For example, it should transform '1100' to '0', '1111000' to '1', and '10100' to '0'.",
+        alphabet=["0", "1", "_"],
+        objective="Output the most frequent character, or '0' in case of a tie.",
+        mode="transform",
+        transform_tests= [ {"input": "1100", "output": "0"} , {"input": "11100", "output": "1"}, {"input": "1010101", "output": "1"}, {"input": "1111", "output": "1"}, {"input": "000", "output": "0"}, {"input": "101010", "output": "0"} ]
     ),
     Level(
         name="Transforming: Reverse String",

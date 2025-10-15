@@ -35,3 +35,37 @@ def delete_machine(name):
     path = os.path.join(get_save_dir(), f"{name}.json")
     if os.path.exists(path):
         os.remove(path)
+
+def get_progress_path():
+    base = os.path.expanduser("~\Documents\Turing Sandbox Saves\progress")
+    path = os.path.join(base, "turing_sandbox_progress.json")
+    if not os.path.exists(path):
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({}, f)
+    return path
+
+def load_progress():
+    path = get_progress_path()
+    with open(path, "r", encoding="utf-8") as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return {}
+
+def save_progress(progress):
+    path = get_progress_path()
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(progress, f, indent=4)
+
+def mark_level_complete(level_name, solution=None):
+    progress = load_progress()
+    progress[level_name] = {"completed": True}
+    if solution:
+        progress[level_name]["solution"] = solution
+    save_progress(progress)
+
+def is_level_complete(level_name):
+    return load_progress().get(level_name, {}).get("completed", False)
+
+def get_level_solution(level_name):
+    return load_progress().get(level_name, {}).get("solution", None)
