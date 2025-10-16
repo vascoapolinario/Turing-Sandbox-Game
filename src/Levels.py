@@ -89,7 +89,7 @@ LEVELS = [
         wrong_examples=["0", "10", "01", "000", "1110", "1101", "1010101", "00000"]
     ),
     Level(
-        name="Transforming: Flip 0s and 1s",
+        name="Flip 0s and 1s",
         type = "Medium",
         description="Flip all 0s to 1s and all 1s to 0s in a binary string.",
         detailedDescription="Turing machine transforms a binary string by flipping all '0's to '1's and all '1's to '0's. For example, it should transform '1010' to '0101', '111000' to '000111', and '000' to '111'. Can be achieved with using write.",
@@ -99,7 +99,7 @@ LEVELS = [
         transform_tests= [ {"input": "1010", "output": "0101"} , {"input": "111000", "output": "000111"}, {"input": "000", "output": "111"}, {"input": "1", "output": "0"}, {"input": "", "output": ""} ]
     ),
     Level(
-        name="Transforming: Add 1",
+        name="Binaries: Add 1",
         type = "Medium",
         description="Add 1 to a binary number.",
         detailedDescription="Turing machine adds 1 to a binary number represented as a string. For example, it should transform '101' to '110', '111' to '1000', and '0' to '1', Etc..",
@@ -107,6 +107,16 @@ LEVELS = [
         objective="Transform the binary number by adding 1.",
         mode="transform",
         transform_tests= [ {"input": "101", "output": "110"} , {"input": "111", "output": "1000"}, {"input": "0", "output": "1"}, {"input": "1101", "output": "1110"}, {"input": "10011", "output": "10100"} ]
+    ),
+    Level(
+        name="Binaries: Subtract 1",
+        type = "Medium",
+        description="Subtract 1 from a binary number.",
+        detailedDescription="Turing machine subtracts 1 from a binary number represented as a string. For example, it should transform '110' to '101', '1000' to '111', and '1' to '', Etc..",
+        alphabet=["0", "1", "_"],
+        objective="Transform the binary number by subtracting 1.",
+        mode="transform",
+        transform_tests= [ {"input": "110", "output": "101"} , {"input": "1000", "output": "111"}, {"input": "1", "output": ""}, {"input": "1110", "output": "1101"}, {"input": "10100", "output": "10011"} ]
     ),
     Level(
         name="N repetitions",
@@ -131,7 +141,7 @@ LEVELS = [
         wrong_examples=["0", "1", "10", "11", "01", "0001111", "00111", "0011", "001", "1100", "111000", "00011111"]
     ),
     Level(
-        name="Transforming: Functions",
+        name="Most Frequent Character",
         type = "Hard",
         description="Given a binary word, output only the most used character, incase of a tie output 0.",
         detailedDescription="Turing machine reads a binary string and outputs the character ('0' or '1') that appears most frequently in the input. Incase of a tie, it should output '0'. For example, it should transform '1100' to '0', '1111000' to '1', and '10100' to '0'.",
@@ -141,13 +151,23 @@ LEVELS = [
         transform_tests= [ {"input": "1100", "output": "0"} , {"input": "11100", "output": "1"}, {"input": "1010101", "output": "1"}, {"input": "1111", "output": "1"}, {"input": "000", "output": "0"}, {"input": "101010", "output": "0"} ]
     ),
     Level(
-        name="Summing Binaries",
+        name="1s to binary",
         type = "Hard",
-        description="Given two binary numbers separated by a S, output their sum.",
-        detailedDescription="Turing machine reads a binary string containing two binary numbers separated by the character 'S' and outputs their sum as a binary number. For example, it should transform '101S10' to '111', '11S1' to '100', and '0S0' to '0'.",
-        alphabet=["0", "1", "S", "_"],
-        objective="Output the sum of the two binary numbers.",
+        description="Convert a unary number (a series of 1s) to its binary representation.",
+        detailedDescription="Turing machine converts a unary number, represented as a series of '1's, into its binary representation. For example, it should transform '111' to '11' (which is 3 in binary), '11111' to '101' (which is 5 in binary), and '1' to '1' (which is 1 in binary).",
+        alphabet=["1", "0", "_", "#"],
+        objective="Convert unary '1's to their binary representation.",
         mode="transform",
-        transform_tests= [ {"input": "101S10", "output": "111"} , {"input": "11S1", "output": "100"}, {"input": "0S0", "output": "0"}, {"input": "111S111", "output": "1110"}, {"input": "1001S110", "output": "1111"} ]
+        transform_tests= [ {"input": "111", "output": "11"} , {"input": "11111", "output": "101"}, {"input": "1", "output": "1"}, {"input": "1111111", "output": "111"}, {"input": "11111111", "output": "1000"}, {"input": "", "output": ""} ]
+    ),
+    Level(
+        name="Subtract binaries",
+        type = "Hard",
+        description="Subtract two binary numbers separated by a # symbol.",
+        detailedDescription="Turing machine subtracts the second binary number from the first binary number, where the two numbers are separated by a '#' symbol. For example, it should transform '1101#101' to '1000' (which is 13 - 5 = 8 in binary), '1000#1' to '111' (which is 8 - 1 = 7 in binary), and '1010#10' to '1000' (which is 10 - 2 = 8 in binary). Consider only non-negative results.",
+        alphabet=["0", "1", "_", "#"],
+        objective="Subtract the second binary number from the first.",
+        mode="transform",
+        transform_tests= [ {"input": "1101#101", "output": "1000"} , {"input": "1000#1", "output": "111"}, {"input": "1010#10", "output": "1000"}, {"input": "1111#111", "output": "1000"}, {"input": "10000#1", "output": "1111"} ]
     )
 ]

@@ -94,7 +94,7 @@ def main():
 
         if state != previous_state and rpc:
             if state == "main_menu":
-                rpc.update(state="In main menu", details="Choosing mode", large_image="menu")
+                rpc.update(state="In main menu", details="Choosing GameMode..", large_image="menu")
             elif state == "level_select":
                 rpc.update(state="Selecting level", details="Browsing levels", large_image="levels")
             elif state == "environment":
