@@ -42,7 +42,8 @@ def delete_progress():
         os.remove(path)
 
 def get_progress_path():
-    base = os.path.expanduser("~\Documents\Turing Sandbox Saves\progress")
+    base = os.path.expanduser(r"~/Documents/Turing Sandbox Saves/progress")
+    os.makedirs(base, exist_ok=True)
     path = os.path.join(base, "turing_sandbox_progress.json")
     if not os.path.exists(path):
         with open(path, "w", encoding="utf-8") as f:
