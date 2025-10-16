@@ -2,12 +2,21 @@ import platform
 
 import pygame
 import sys
+import pypresence
 from MainMenu import MainMenu
 from Environment import Environment
 from LevelSelectMenu import LevelSelectMenu
 
 pygame.init()
 import ctypes
+
+DISCORD_CLIENT_ID = "1428136659047809034"
+rpc = None
+try:
+    rpc = pypresence.Presence(DISCORD_CLIENT_ID)
+    rpc.connect()
+except Exception as e:
+    print("Could not connect to Discord:", e)
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 900, 600
 WINDOW_TITLE = "Turing Machine Sandbox"
@@ -31,6 +40,7 @@ def main():
     env = None
     level_menu = None
     state = "main_menu"
+    previous_state = None
 
     running = True
     while running:
@@ -81,6 +91,15 @@ def main():
                 menu = MainMenu(screen)
                 env = None
                 state = "main_menu"
+
+        if state != previous_state and rpc:
+            if state == "main_menu":
+                rpc.update(state="In main menu", details="Choosing mode", large_image="menu")
+            elif state == "level_select":
+                rpc.update(state="Selecting level", details="Browsing levels", large_image="levels")
+            elif state == "environment":
+                rpc.update(state=f"Playing level: {env.level.name}", details="Building a Turing Machine!", large_image="logo")
+            previous_state = state
 
         pygame.display.flip()
 
