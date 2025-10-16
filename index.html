@@ -169,9 +169,9 @@ async def custom_site():
 
         # now make a prompt
         fnt = pygame.sysfont.SysFont("freesans",  uy(80) )
-        prompt = fnt.render("Click to start (requires spam)", True, "blue")
+        prompt = fnt.render("Ready to start !", True, "blue")
         pg_bar(track.len)
-        screen.blit(prompt, ( marginx+ ux(100), marginy - uy(10) ) )
+        screen.blit(prompt, ( marginx+ ux(80), marginy - uy(10) ) )
         compose()
         print("""
         * Waiting for media user engagement : please click/touch page *
@@ -237,7 +237,7 @@ config = {
     _sdl2 : "canvas",
     user_canvas : 0,
     user_canvas_managed : 0,
-    ume_block : 1,
+    ume_block : 0,
     can_close : 0,
     archive : "turingproj",
     gui_debug : 3,
