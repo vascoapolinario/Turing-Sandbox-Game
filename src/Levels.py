@@ -161,13 +161,14 @@ LEVELS = [
         transform_tests= [ {"input": "111", "output": "11"} , {"input": "11111", "output": "101"}, {"input": "1", "output": "1"}, {"input": "1111111", "output": "111"}, {"input": "11111111", "output": "1000"}, {"input": "", "output": ""} ]
     ),
     Level(
-        name="Subtract binaries",
+        name="Two Tapes: Subtract binaries",
         type = "Hard",
         description="Subtract two binary numbers separated by a # symbol.",
         detailedDescription="Turing machine subtracts the second binary number from the first binary number, where the two numbers are separated by a '#' symbol. For example, it should transform '1101#101' to '1000' (which is 13 - 5 = 8 in binary), '1000#1' to '111' (which is 8 - 1 = 7 in binary), and '1010#10' to '1000' (which is 10 - 2 = 8 in binary). Consider only non-negative results.",
         alphabet=["0", "1", "_", "#"],
-        objective="Subtract the second binary number from the first.",
+        objective="Subtract the second binary number from the first. The result must be on the bottom tape.",
         mode="transform",
-        transform_tests= [ {"input": "1101#101", "output": "1000"} , {"input": "1000#1", "output": "111"}, {"input": "1010#10", "output": "1000"}, {"input": "1111#111", "output": "1000"}, {"input": "10000#1", "output": "1111"} ]
+        transform_tests= [ {"input": "1101#101", "output": "1000"} , {"input": "1000#1", "output": "111"}, {"input": "1010#10", "output": "1000"}, {"input": "1111#111", "output": "1000"}, {"input": "10000#1", "output": "1111"} ],
+        double_tape=True
     )
 ]

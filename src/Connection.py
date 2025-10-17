@@ -1,10 +1,11 @@
 import pygame
 import math
 from MainMenu import COLORS
+from FontManager import FontManager
 
 
 class Connection:
-    def __init__(self, start_node, end_node, read=None, write=None, move=None):
+    def __init__(self, start_node, end_node, read=None, write=None, move=None, read2=None, write2=None, move2=None):
         self.start = start_node
         self.end = end_node
 
@@ -12,11 +13,16 @@ class Connection:
         self.write = write
         self.move = move
 
+        self.read2 = [] if read2 is None else read2
+        self.write2 = write2
+        self.move2 = move2
+        self.label_offset = 0
+
         self.color = COLORS["text"]
         self.thickness = 3
         self.curvature = 60
         self.arrow_size = 10
-        self.font = pygame.font.SysFont("futura", 18, bold=True)
+        self.font = FontManager.get(18)
 
     def draw(self, screen, grid):
         start_world = self.start.pos
@@ -52,12 +58,21 @@ class Connection:
         label_text = self._make_label_text()
         if label_text:
             label_surface = self.font.render(label_text, True, COLORS["text"])
+
             offset_dir = (grid.world_to_screen(control_world) - mid_point)
             if offset_dir.length() > 0:
-                offset = offset_dir.normalize() * 20
+                base_offset = offset_dir.normalize() * 20
             else:
-                offset = pygame.Vector2(0, -20)
+                base_offset = pygame.Vector2(0, -20)
+
+            offset_index = getattr(self, "offset_index", 0)
+            total_between = getattr(self, "total_between_same", 1)
+
+            vertical_offset = (offset_index - (total_between - 1) / 2) * 18
+            offset = base_offset + pygame.Vector2(0, vertical_offset)
+
             label_rect = label_surface.get_rect(center=(mid_point + offset))
+            label_rect.y += self.label_offset
             screen.blit(label_surface, label_rect)
 
     def _draw_self_loop(self, screen, grid):
@@ -81,6 +96,7 @@ class Connection:
             label_surface = self.font.render(label_text, True, COLORS["text"])
             sx, sy = grid.world_to_screen(pygame.Vector2(left.x + (start.x - left.x) / 2, top.y - 15))
             label_rect = label_surface.get_rect(center=(sx, sy))
+            label_rect.y -= self.label_offset
             screen.blit(label_surface, label_rect)
 
     def _draw_arrowhead(self, screen, prev, end, color=None):
@@ -97,23 +113,36 @@ class Connection:
         pygame.draw.polygon(screen, color, points)
 
     def _make_label_text(self):
-        if not self.read and not self.move and not self.write:
-            return ""
-        read_part = ",".join(self.read) if isinstance(self.read, list) else str(self.read)
-        label = f"{read_part}"
-        if self.write:
-            label += f" -> {self.write}"
-        if self.move:
-            label += f", {self.move}"
-        return label
+        def make_label(read, write, move):
+            if not read and not write and not move:
+                return ""
+            read_part = ",".join(read) if isinstance(read, list) else (str(read) if read is not None else "")
+            label = f"{read_part}"
+            if write:
+                label += f" -> {write}"
+            if move:
+                label += f", {move}"
+            return label
 
-    def update_logic(self, read=None, write=None, move=None):
+        label1 = make_label(self.read, self.write, self.move)
+        label2 = make_label(self.read2, self.write2, self.move2)
+        if label1 and label2:
+            return f"{label1} || {label2}"
+        return label1 or label2 or ""
+
+    def update_logic(self, read=None, write=None, move=None, read2=None, write2=None, move2=None):
         if read is not None:
             self.read = read
         if write is not None:
             self.write = write
         if move is not None:
             self.move = move
+        if read2 is not None:
+            self.read2 = read2
+        if write2 is not None:
+            self.write2 = write2
+        if move2 is not None:
+            self.move2 = move2
 
     def is_clicked(self, pos, grid, tolerance=8):
         start_world = self.start.pos

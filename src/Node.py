@@ -1,5 +1,6 @@
 import pygame
-from MainMenu import COLORS
+from Button import COLORS
+from FontManager import FontManager
 
 
 class Node:
@@ -26,12 +27,13 @@ class Node:
         self.end_color = (200, 80, 80)
         self.hover_color = COLORS["hover"]
         self.text_color = COLORS["text"]
-        self.font = pygame.font.SysFont("futura", 35, bold=True)
+        self.font_size = 35
 
     def draw(self, screen, grid=None):
         draw_pos = self.pos
         radius = self.radius * grid.zoom
-        self.font = pygame.font.SysFont("futura", int(35 * grid.zoom), bold=True) if grid else self.font
+        size = int(self.font_size * grid.zoom) if grid else self.font_size
+        font = FontManager.get(size)
         if grid:
             draw_pos = grid.world_to_screen(self.pos)
 
@@ -52,8 +54,7 @@ class Node:
         pygame.draw.circle(screen, color, draw_pos, radius)
         pygame.draw.circle(screen, self.text_color, draw_pos, radius, 2)
 
-        label = "q" + str(self.id)
-        text = self.font.render(label, True, self.text_color)
+        text = font.render(f"q{self.id}", True, self.text_color)
         text_rect = text.get_rect(center=draw_pos)
         screen.blit(text, text_rect)
 

@@ -16,6 +16,8 @@ from ConnectionWindow import ConnectionWindow
 from TuringMachine import TuringMachine
 from PauseMenu import PauseMenu
 from TutorialHelper import TutorialHelper
+from FontManager import FontManager
+
 
 class Environment:
     def __init__(self, screen, level=None):
@@ -28,11 +30,17 @@ class Environment:
             objective="Experiment freely.",
             solution={},
             mode="accept",
+            double_tape=True
 
         )
         self.alphabet = self.level.alphabet
         self.screen = screen
-        self.tape = Tape(screen)
+        if self.level.double_tape:
+            self.tape = Tape(screen, base_y=-210)
+            self.tape2 = Tape(screen, base_y=-50)
+        else:
+            self.tape = Tape(screen)
+            self.tape2 = None
         self.running = True
         self.toolbox = Toolbox(screen, self.on_tool_selected)
         self.grid = Grid(screen)
@@ -41,7 +49,7 @@ class Environment:
         self.nodes = []
         Node._id_counter = 0
         self.connections = []
-        self.TuringMachine = TuringMachine(screen, self.nodes, self.connections, self.tape)
+        self.TuringMachine = TuringMachine(screen, self.nodes, self.connections, self.tape, self.tape2, self.level.double_tape)
 
         self.current_tool = None
         self.connecting_from = None
@@ -53,11 +61,13 @@ class Environment:
 
         self.paused = False
         self.back_to_menu = False
+        self.levelselection = False
         self.pause_menu = PauseMenu(
             self.screen,
             on_resume=self._resume,
             on_save_load=self._save_machine,
             on_exit_to_menu=self._return_to_menu,
+            on_levels = self._levelmenu,
             on_clear=self._clear_space,
             on_quit=self._quit_game,
             level=self.level
@@ -78,7 +88,7 @@ class Environment:
             self.submit_button = Button(
                 "Submit",
                 (0.75, 0.10, 0.20, 0.06),
-                pygame.font.SysFont("futura", 22, bold=True),
+                FontManager.get(22),
                 self._run_level_tests
             )
 
@@ -91,6 +101,8 @@ class Environment:
         if self.TuringMachine.alphabet != self.alphabet:
             self.TuringMachine.alphabet = self.alphabet
         self.tape.update(dt)
+        if self.level.double_tape:
+            self.tape2.update(dt)
         self.toolbox.update(dt)
         if self.tutorial:
             self.tutorial.update(self.nodes, self.connections, self.test_complete)
@@ -136,6 +148,8 @@ class Environment:
             self.connection_window.draw()
 
         self.tape.draw()
+        if self.level.double_tape:
+            self.tape2.draw()
         if self.tutorial:
             self.tutorial.draw()
         self.toolbox.draw()
@@ -232,9 +246,10 @@ class Environment:
         return None
 
     def _create_connection(self, start_node, end_node):
-        if self._connection_exists(start_node, end_node):
-            return
         conn = Connection(start_node, end_node)
+        for connection in self.connections:
+            if connection.start == start_node and connection.end == end_node:
+                conn.label_offset += 15
         self.connections.append(conn)
         start_node.add_connection(conn)
         self._sync_machine()
@@ -244,29 +259,54 @@ class Environment:
             conn,
             symbols=self.alphabet,
             on_save=self._save_connection_logic,
-            on_cancel=lambda: self._cancel_connection_window(conn)
+            on_cancel=lambda: self._cancel_connection_window(conn),
+            double_tape=(self.level.double_tape == True)
         )
 
-    def _connection_exists(self, start_node, end_node):
-        for c in self.connections:
-            if c.start == start_node and c.end == end_node:
-                return True
-        return False
+    def _save_connection_logic(self, read, write, move, read2=None, write2=None, move2=None):
+        if not self.connection_window:
+            return
 
-    def _save_connection_logic(self, read, write, move):
-        if self.connection_window:
-            if not read or not move:
-                self._cancel_connection_window(self.connection_window.connection)
-                return
-            for conn in self.connections:
-                if (conn.start == self.connection_window.connection.start and
-                    conn != self.connection_window.connection and
-                    any(sym in conn.read for sym in read)):
-                    self._cancel_connection_window(self.connection_window.connection)
-                    return
-            self.connection_window.connection.update_logic(read, write, move)
-            self._sync_machine()
-            self.connection_window = None
+        if not read or not move:
+            self._cancel_connection_window(self.connection_window.connection)
+            return
+
+        double_mode = self.level.double_tape
+        double_provided = (read2 is not None or write2 is not None or move2 is not None)
+
+        if double_provided and (not read2 or not move2):
+            self._cancel_connection_window(self.connection_window.connection)
+            return
+
+        new_conn = self.connection_window.connection
+        start = new_conn.start
+
+        new_read = set(read)
+        new_read2 = set(read2 or [])
+
+        for existing in self.connections:
+            if existing is new_conn:
+                continue
+            if existing.start == start:
+                existing_read = set(getattr(existing, "read", []))
+                existing_read2 = set(getattr(existing, "read2", []))
+
+                if not double_mode:
+                    if new_read & existing_read:
+                        self._cancel_connection_window(new_conn)
+                        return
+                else:
+                    if new_read & existing_read and new_read2 & existing_read2:
+                        self._cancel_connection_window(new_conn)
+                        return
+
+        if double_mode and double_provided:
+            new_conn.update_logic(read, write, move, read2, write2, move2)
+        else:
+            new_conn.update_logic(read, write, move)
+
+        self._sync_machine()
+        self.connection_window = None
 
     def _cancel_connection_window(self, conn):
         if conn in self.connections:
@@ -327,8 +367,8 @@ class Environment:
             self.TuringMachine.current_node = next((n for n in self.nodes if getattr(n, "is_start", False)), None)
 
     def _draw_level_info(self):
-        font = pygame.font.SysFont("futura", 22, bold=True)
-        desc_font = pygame.font.SysFont("futura", 18)
+        font = FontManager.get(22)
+        desc_font = FontManager.get(18, False)
         name_text = font.render(self.level.name, True, COLORS["accent"])
         desc_text = desc_font.render(self.level.description, True, COLORS["text"])
         name_x = self.screen.get_width() - 20 - name_text.get_width()
@@ -354,7 +394,7 @@ class Environment:
             pygame.draw.rect(self.screen, (90, 200, 90), (bar_x, bar_y, bar_width * pct, bar_height), border_radius=6)
 
         if self.test_complete:
-            font = pygame.font.SysFont("futura", 18)
+            font = FontManager.get(22)
             status = "Level Passed" if self.all_passed else "Level Incomplete"
             color = (120, 220, 120) if self.all_passed else (220, 100, 100)
             text = font.render(status, True, color)
@@ -448,8 +488,11 @@ class Environment:
             self.TuringMachine.step()
             if self.TuringMachine.finished:
                 break
-
-        result = self.tape.get_tape_string().strip("_")
+        if self.level.double_tape:
+            result = self.tape2.get_tape_string().strip("_")
+        else:
+            result = self.tape.get_tape_string().strip("_")
+        #print("Input: ", input_string, " Output: ", result, " Expected: ", expected_output)
         return result == expected_output
 
     def load_solution(self, solution):
@@ -469,5 +512,11 @@ class Environment:
         self.test_results.clear()
         self.test_complete = False
         self.all_passed = False
+        self.paused = False
+        self.pause_menu.hide()
+
+    def _levelmenu(self):
+        self.back_to_menu = True
+        self.levelselection = True
         self.paused = False
         self.pause_menu.hide()

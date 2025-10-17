@@ -3,7 +3,7 @@ from Button import Button
 from MainMenu import COLORS
 
 class PauseMenu:
-    def __init__(self, screen, on_resume, on_save_load, on_exit_to_menu, on_clear, on_quit, level=None):
+    def __init__(self, screen, on_resume, on_save_load, on_exit_to_menu, on_levels, on_clear, on_quit, level=None):
         self.screen = screen
         self.font_title = pygame.font.SysFont("futura", 46, bold=True)
         self.font_sub = pygame.font.SysFont("futura", 22)
@@ -14,8 +14,9 @@ class PauseMenu:
             Button("Resume", (0.4, 0.35, 0.2, 0.07), self.font_sub, on_resume),
             Button("Save/Load", (0.4, 0.45, 0.2, 0.07), self.font_sub, on_save_load),
             Button("Return to Menu", (0.4, 0.55, 0.2, 0.07), self.font_sub, on_exit_to_menu),
-            Button("Clear space", (0.4, 0.65, 0.2, 0.07), self.font_sub, on_clear),
-            Button("Quit", (0.4, 0.75, 0.2, 0.07), self.font_sub, on_quit),
+            Button("Levels", (0.4, 0.65, 0.2, 0.07), self.font_sub, on_levels),
+            Button("Clear space", (0.4, 0.75, 0.2, 0.07), self.font_sub, on_clear),
+            Button("Quit", (0.4, 0.85, 0.2, 0.07), self.font_sub, on_quit),
         ]
 
     def show(self):

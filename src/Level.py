@@ -1,7 +1,7 @@
 import json
 
 class Level:
-    def __init__(self, name, type, description, detailedDescription, alphabet, objective, mode, solution=None, transform_tests=None, correct_examples=None, wrong_examples=None):
+    def __init__(self, name, type, description, detailedDescription, alphabet, objective, mode, solution=None, transform_tests=None, correct_examples=None, wrong_examples=None, double_tape=False):
         self.name = name
         self.type = type
         self.description = description
@@ -13,6 +13,7 @@ class Level:
         self.transform_tests = transform_tests or []
         self.correct_examples = correct_examples or []
         self.wrong_examples = wrong_examples or []
+        self.double_tape = double_tape
 
     def to_dict(self):
         return {
@@ -26,7 +27,8 @@ class Level:
             "solution": self.solution,
             "transform_tests": self.transform_tests,
             "correct_examples": self.correct_examples,
-            "wrong_examples": self.wrong_examples
+            "wrong_examples": self.wrong_examples,
+            "double_tape": self.double_tape
         }
 
     @staticmethod
@@ -42,7 +44,8 @@ class Level:
             solution=data.get("solution"),
             transform_tests=data["transform_tests"],
             correct_examples=data.get("correct_examples"),
-            wrong_examples=data.get("wrong_examples")
+            wrong_examples=data.get("wrong_examples"),
+            double_tape=data.get("double_tape", False)
         )
 
     def save_to_file(self, path):

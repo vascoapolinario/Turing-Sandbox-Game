@@ -2,3 +2,7 @@
 /__pycache__
 /.idea
 /src/__pycache__
+src/favicon.ico
+/src/build
+/src/dist
+src/main.spec

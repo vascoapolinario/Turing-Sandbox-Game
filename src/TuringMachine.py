@@ -1,12 +1,18 @@
 import pygame
 from MainMenu import COLORS
+from Connection import Connection
+from FontManager import FontManager
+
 
 class TuringMachine:
-    def __init__(self, screen, nodes, connections, tape):
+    def __init__(self, screen, nodes, connections, tape, tape2=None, double_tape=False):
         self.screen = screen
         self.nodes = nodes
         self.connections = connections
         self.tape = tape
+        self.double_tape = double_tape
+        self.tape2 = tape2 if (double_tape and tape2) else None
+
         self.input_active = False
         self.input_text = ""
         self.alphabet = ['0', '1', '_']
@@ -14,6 +20,7 @@ class TuringMachine:
         self.current_node = next((n for n in nodes if getattr(n, "is_start", False)), None)
         if self.current_node:
             self.current_node.is_active = True
+
         self.running = False
         self.paused = True
         self.finished = False
@@ -26,14 +33,11 @@ class TuringMachine:
         self.animation_speed = 480
         self.open = False
 
-        self.font = pygame.font.SysFont("futura", 24, bold=True)
-        self.small_font = pygame.font.SysFont("futura", 18)
-
+        self.font = FontManager.get(24)
+        self.small_font = FontManager.get(18, bold=False)
 
         self.buttons = {}
         self.hovered_button = None
-
-
         self.toggle_rect = None
         self.toggle_hovered = False
 
@@ -51,46 +55,60 @@ class TuringMachine:
             if self.timer >= self.step_delay:
                 self.step()
                 self.timer = 0
-
     def step(self):
-
         if not self.current_node:
             self.finished = True
             return
 
-        if self.current_node and getattr(self.current_node, "is_end", False):
+        if getattr(self.current_node, "is_end", False):
             self.finished = True
             self.running = False
             return
 
-        current_symbol = self.tape.read_symbol()
+        s1 = self.tape.read_symbol()
+        s2 = self.tape2.read_symbol() if self.double_tape and self.tape2 else None
 
         valid_conn = None
         for conn in self.connections:
-            if conn.start == self.current_node and current_symbol in conn.read:
-                valid_conn = conn
-                break
+            if conn.start is not self.current_node:
+                continue
 
-        if self.current_node:
-            self.current_node.is_active = False
+            if self.double_tape and self.tape2:
+                if s1 in conn.read and (not conn.read2 or s2 in conn.read2):
+                    valid_conn = conn
+                    break
+            else:
+                if s1 in conn.read:
+                    valid_conn = conn
+                    break
 
-        if not valid_conn and self.current_node.is_end == False:
+        if not valid_conn:
             self.finished = True
             self.running = False
             return
 
         if valid_conn.write:
             self.tape.write_symbol(valid_conn.write)
+        if self.double_tape and valid_conn.write2 and self.tape2:
+            self.tape2.write_symbol(valid_conn.write2)
 
         if valid_conn.move == "L":
             self.tape.move_left()
         elif valid_conn.move == "R":
             self.tape.move_right()
+        if self.double_tape and self.tape2:
+            if valid_conn.move2 == "L":
+                self.tape2.move_left()
+            elif valid_conn.move2 == "R":
+                self.tape2.move_right()
 
+        self.current_node.is_active = False
         self.current_node = valid_conn.end
-
         self.current_node.is_active = True
+
         self.tape.show()
+        if self.double_tape and self.tape2:
+            self.tape2.show()
 
         if getattr(self.current_node, "is_end", False):
             self.finished = True
@@ -105,6 +123,8 @@ class TuringMachine:
         self.paused = False
         self.current_node.is_active = True
         self.tape.show()
+        if self.double_tape and self.tape2:
+            self.tape2.show()
 
     def pause(self):
         if self.running:
@@ -117,6 +137,9 @@ class TuringMachine:
         if self.current_node:
             self.current_node.is_active = False
         self.tape.reset()
+        if self.double_tape and self.tape2:
+            self.tape2.reset()
+            self.tape2.change_tape("")
         self.finished = False
         self.running = False
         self.paused = True
@@ -147,12 +170,10 @@ class TuringMachine:
         panel_y = sh / 2 - self.height / 2
         target_x = sw - self.target_width - self.toggle_rect.width - 8
         start_x = sw
-
         open_ratio = self.current_width / self.target_width if self.target_width > 0 else 0
         panel_x = start_x - (start_x - target_x) * open_ratio
 
         rect = pygame.Rect(panel_x, panel_y, self.target_width, self.height)
-
         shadow = rect.move(-5, 5)
         pygame.draw.rect(self.screen, (0, 0, 0, 100), shadow, border_radius=16)
         pygame.draw.rect(self.screen, (30, 35, 60), rect, border_radius=16)
@@ -228,8 +249,12 @@ class TuringMachine:
                         elif name == "Show/Hide Tape":
                             if self.tape.visible:
                                 self.tape.hide()
+                                if self.double_tape and self.tape2:
+                                    self.tape2.hide()
                             else:
                                 self.tape.show()
+                                if self.double_tape and self.tape2:
+                                    self.tape2.show()
                         elif name == "Test Word":
                             self.input_active = True
                             self.input_text = ""
@@ -244,7 +269,7 @@ class TuringMachine:
             label = "Step"
             base = (100, 130, 220)
         elif name == "Show/Hide Tape":
-            label = "Hide Tape" if self.tape.visible else "Show Tape"
+            label = "Hide Tapes" if self.tape.visible else "Show Tapes"
             base = (120, 100, 200)
         elif name == "Test Word":
             label = "Set Tape Word"
@@ -259,6 +284,28 @@ class TuringMachine:
 
         text = self.small_font.render(label, True, (255, 255, 255))
         self.screen.blit(text, (rect.centerx - text.get_width() // 2, rect.centery - text.get_height() // 2))
+
+    def _draw_input_box(self):
+        sw, sh = self.screen.get_size()
+        box_w, box_h = 400, 150
+        box_x = sw / 2 - box_w / 2
+        box_y = sh / 2 - box_h / 2
+        rect = pygame.Rect(box_x, box_y, box_w, box_h)
+
+        shadow = rect.move(-4, 4)
+        pygame.draw.rect(self.screen, (0, 0, 0, 120), shadow, border_radius=12)
+        pygame.draw.rect(self.screen, (40, 45, 70), rect, border_radius=12)
+        pygame.draw.rect(self.screen, COLORS["accent"], rect, 2, border_radius=12)
+
+        prompt = self.small_font.render("Enter input word (use symbols: " + ", ".join(self.alphabet) + "):", True, COLORS["text"])
+        self.screen.blit(prompt, (rect.x + 20, rect.y + 20))
+
+        input_rect = pygame.Rect(rect.x + 20, rect.y + 60, box_w - 40, 40)
+        pygame.draw.rect(self.screen, (60, 70, 100), input_rect, border_radius=8)
+        pygame.draw.rect(self.screen, COLORS["accent"], input_rect, 2, border_radius=8)
+
+        input_text_surface = self.small_font.render(self.input_text, True, COLORS["text"])
+        self.screen.blit(input_text_surface, (input_rect.x + 10, input_rect.y + 8))
 
     def serialize(self, name):
         return {
@@ -279,7 +326,10 @@ class TuringMachine:
                     "end": c.end.id,
                     "read": c.read,
                     "write": c.write,
-                    "move": c.move
+                    "move": c.move,
+                    "read2": c.read2,
+                    "write2": c.write2,
+                    "move2": c.move2
                 }
                 for c in self.connections
             ]
@@ -309,26 +359,12 @@ class TuringMachine:
             if not start or not end:
                 continue
             conn = Connection(start, end)
-            conn.update_logic(cdata["read"], cdata["write"], cdata["move"])
+            conn.update_logic(cdata["read"], cdata["write"], cdata["move"], cdata.get("read2"), cdata.get("write2"), cdata.get("move2"))
             self.connections.append(conn)
+            for connection in self.connections:
+                if connection.start == start and connection.end == end:
+                    conn.label_offset += 15
 
         self.current_node = next((n for n in self.nodes if getattr(n, "is_start", False)), None)
         self.finished = False
         self.running = False
-
-    def _draw_input_box(self):
-        w, h = self.screen.get_size()
-        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 120))
-        self.screen.blit(overlay, (0, 0))
-
-        box = pygame.Rect(w / 2 - 180, h / 2 - 30, 360, 60)
-        pygame.draw.rect(self.screen, (40, 60, 100), box, border_radius=12)
-        pygame.draw.rect(self.screen, COLORS["accent"], box, 2, border_radius=12)
-
-        label = self.small_font.render(f"Enter tape word (symbols: {', '.join(self.alphabet)}):", True,
-                                       COLORS["accent"])
-        self.screen.blit(label, (box.x, box.y - 30))
-
-        txt = self.small_font.render(self.input_text + "|", True, COLORS["text"])
-        self.screen.blit(txt, (box.x + 10, box.y + 18))

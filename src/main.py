@@ -87,10 +87,15 @@ def main():
             env.update(dt)
             env.draw()
 
-            if env.back_to_menu:
+            if env.back_to_menu and not env.levelselection:
                 menu = MainMenu(screen)
                 env = None
                 state = "main_menu"
+            elif env.levelselection:
+                level_menu = LevelSelectMenu(screen)
+                env = None
+                state = "level_select"
+
 
         if state != previous_state and rpc:
             if state == "main_menu":

@@ -1,18 +1,22 @@
 import pygame
 from MainMenu import COLORS
+from FontManager import FontManager
+
 
 class Tape:
-    def __init__(self, screen, tape_string=""):
+    def __init__(self, screen, tape_string="", base_y= -50):
         self.screen = screen
         self.cell_count = len(tape_string) + 10
         self.speed = 400
 
+        self.base_y = base_y
+        self.hidden_y = base_y + 500
+        self.y_offset = self.hidden_y
+        self.target_y = self.hidden_y
+        self.slide_speed = 1000
         self.visible = False
-        self.y_offset = 200
-        self.target_y_offset = 200
-        self.slide_speed = 600
 
-        self.font = pygame.font.SysFont("futura", 48)
+        self.font = FontManager.get(48, bold=False)
         self.cell_color = (50, 70, 110)
         self.border_color = COLORS["accent"]
 
@@ -20,17 +24,16 @@ class Tape:
 
     def show(self):
         self.visible = True
-        self.target_y_offset = 0
+        self.target_y = self.base_y
 
     def hide(self):
         self.visible = False
-        self.target_y_offset = 200
+        self.target_y = self.hidden_y
 
     def change_tape(self, tape_string):
         half = (self.cell_count - len(tape_string)) // 2
         self.symbols = ["_"] * half + list(tape_string) + ["_"] * (self.cell_count - len(tape_string) - half)
         self.cell_index = half
-
         self.offset = self.cell_index * self.get_cell_width()
         self.target_offset = self.offset
 
@@ -51,17 +54,19 @@ class Tape:
         return w * 0.08
 
     def update(self, dt):
-        if abs(self.target_offset - self.offset) > 1:
-            move_dir = (self.target_offset - self.offset) / abs(self.target_offset - self.offset)
-            self.offset += move_dir * self.speed * dt
-            if (move_dir > 0 and self.offset > self.target_offset) or (move_dir < 0 and self.offset < self.target_offset):
-                self.offset = self.target_offset
-
-        if abs(self.target_y_offset - self.y_offset) > 1:
-            direction = 1 if self.target_y_offset > self.y_offset else -1
+        if abs(self.target_y - self.y_offset) > 1:
+            direction = 1 if self.target_y > self.y_offset else -1
             self.y_offset += direction * self.slide_speed * dt
-            if (direction > 0 and self.y_offset > self.target_y_offset) or (direction < 0 and self.y_offset < self.target_y_offset):
-                self.y_offset = self.target_y_offset
+            if (direction > 0 and self.y_offset > self.target_y) or (
+                    direction < 0 and self.y_offset < self.target_y):
+                self.y_offset = self.target_y
+
+        if abs(self.target_offset - self.offset) > 1:
+            direction = 1 if self.target_offset > self.offset else -1
+            self.offset += direction * self.speed * dt
+            if (direction > 0 and self.offset > self.target_offset) or (
+                    direction < 0 and self.offset < self.target_offset):
+                self.offset = self.target_offset
 
     def draw(self):
         w, h = self.screen.get_size()
@@ -69,7 +74,7 @@ class Tape:
         cell_h = h * 0.15
 
         start_x = w / 2 - self.offset
-        y = h * 0.9 + self.y_offset
+        y = h * 0.95 + self.y_offset
 
         tape_y = y + cell_h / 2
         pygame.draw.rect(self.screen, (20, 30, 50), (0, tape_y - 5, w, 10))
