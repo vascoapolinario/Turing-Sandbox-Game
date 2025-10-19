@@ -1,3 +1,4 @@
+import os
 import platform
 
 import pygame
@@ -20,6 +21,17 @@ except Exception as e:
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 900, 600
 WINDOW_TITLE = "Turing Machine Sandbox"
+
+if hasattr(sys, "_MEIPASS"):
+    icon_path = os.path.join(sys._MEIPASS, "assets", "favicon.ico")
+else:
+    icon_path = os.path.join("assets", "favicon.ico")
+
+try:
+    icon_surface = pygame.image.load(icon_path)
+    pygame.display.set_icon(icon_surface)
+except Exception as e:
+    print("Not able to load icon:", e)
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
 
 if platform.system() == "Windows":

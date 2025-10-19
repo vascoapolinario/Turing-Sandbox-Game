@@ -137,3 +137,13 @@ class Toolbox:
     def select_tool(self, tool_name):
         self.current_tool = None if self.current_tool == tool_name else tool_name
         self.on_tool_selected(self.current_tool or "select")
+        if self.current_tool == "node":
+            pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+        elif self.current_tool == "end_node":
+            pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_CROSSHAIR)
+        elif self.current_tool == "connect":
+            pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_SIZEWE)
+        elif self.current_tool == "delete":
+            pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_NO)
+        else:
+            pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
