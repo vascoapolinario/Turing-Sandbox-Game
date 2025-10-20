@@ -53,6 +53,7 @@ def main():
     level_menu = None
     state = "main_menu"
     previous_state = None
+    discord_available = True
 
     running = True
     while running:
@@ -107,16 +108,19 @@ def main():
                 level_menu = LevelSelectMenu(screen)
                 env = None
                 state = "level_select"
-
-
-        if state != previous_state and rpc:
-            if state == "main_menu":
-                rpc.update(state="In main menu", details="Choosing GameMode..", large_image="menu")
-            elif state == "level_select":
-                rpc.update(state="Selecting level", details="Browsing levels", large_image="levels")
-            elif state == "environment":
-                rpc.update(state=f"Playing level: {env.level.name}", details="Building a Turing Machine!", large_image="logo")
-            previous_state = state
+        if discord_available:
+            try:
+                if state != previous_state and rpc:
+                    if state == "main_menu":
+                        rpc.update(state="In main menu", details="Choosing GameMode..", large_image="menu")
+                    elif state == "level_select":
+                        rpc.update(state="Selecting level", details="Browsing levels", large_image="levels")
+                    elif state == "environment":
+                        rpc.update(state=f"Playing level: {env.level.name}", details="Building a Turing Machine!", large_image="logo")
+                    previous_state = state
+            except Exception as e:
+                print("Discord RPC error:", e)
+                discord_available = False
 
         pygame.display.flip()
 

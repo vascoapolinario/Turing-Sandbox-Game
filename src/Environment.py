@@ -1,5 +1,3 @@
-import json
-
 import pygame
 
 import save_manager
@@ -36,8 +34,8 @@ class Environment:
         self.alphabet = self.level.alphabet
         self.screen = screen
         if self.level.double_tape:
-            self.tape = Tape(screen, base_y=-210)
-            self.tape2 = Tape(screen, base_y=-50)
+            self.tape = Tape(screen, base_y_ratio=0.75)
+            self.tape2 = Tape(screen)
         else:
             self.tape = Tape(screen)
             self.tape2 = None

@@ -1,6 +1,5 @@
 import pygame
 from MainMenu import COLORS
-from Connection import Connection
 from FontManager import FontManager
 
 
