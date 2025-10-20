@@ -4,6 +4,7 @@ import pygame, random
 from Button import Button, COLORS
 from Grid import Grid
 from Node import Node
+from FontManager import FontManager
 
 
 class MainMenu:
@@ -30,6 +31,9 @@ class MainMenu:
         self.scroll_speed = 200
 
         self.scroll_offset = 0
+
+        self.symbols_left = [random.choice(['0', '1', '_']) for _ in range(6)]
+        self.symbols_right = [random.choice(['0', '1', '_']) for _ in range(6)]
 
     def populate_nodes(self):
         w, h = self.screen.get_size()
@@ -62,6 +66,8 @@ class MainMenu:
         self.title_y_offset += 0.3 * self.direction
         if abs(self.title_y_offset) > 10:
             self.direction *= -1
+            self.symbols_left = [random.choice(['0', '1', '_']) for _ in range(6)]
+            self.symbols_right = [random.choice(['0', '1', '_']) for _ in range(6)]
 
         screen_size = self.screen.get_size()
         for button in self.buttons:
@@ -90,8 +96,52 @@ class MainMenu:
             node.draw(self.screen, grid=self.grid)
 
         w, h = self.screen.get_size()
-        title_rect = self.title_text.get_rect(center=(w / 2, h * 0.25 + self.title_y_offset))
-        self.screen.blit(self.title_text, title_rect)
+
+        scale = max(0.5, min(1.5, h / 720))
+        title_font = FontManager.get(int(80* scale), bold=True)
+        tape_font = pygame.font.SysFont("consolas", int(28 * scale), bold=True)
+
+        cell_w = int(32 * scale)
+        cell_h = int(40 * scale)
+        padding = int(8 * scale)
+        num_cells = 6
+
+        title_text = title_font.render("Turing Machine Sandbox", True, (255, 255, 255))
+
+        title_y = h * 0.25 + self.title_y_offset
+        y_center = title_y
+        y_top = y_center - cell_h / 2
+
+        x_center = w / 2
+        x_start_left = x_center - title_text.get_width() / 2 - (num_cells * (cell_w + padding)) - 20 * scale
+        for i, sym in enumerate(self.symbols_left):
+            rect = pygame.Rect(x_start_left + i * (cell_w + padding), y_top, cell_w, cell_h)
+            pygame.draw.rect(self.screen, (50, 70, 110), rect, border_radius=6)
+            pygame.draw.rect(self.screen, COLORS["accent"], rect, 2, border_radius=6)
+            text = tape_font.render(sym, True, COLORS["text"])
+            self.screen.blit(text, text.get_rect(center=rect.center))
+
+        x_start_right = x_center + title_text.get_width() / 2 + 30 * scale
+        for i, sym in enumerate(self.symbols_right):
+            rect = pygame.Rect(x_start_right + i * (cell_w + padding), y_top, cell_w, cell_h)
+            pygame.draw.rect(self.screen, (50, 70, 110), rect, border_radius=6)
+            pygame.draw.rect(self.screen, COLORS["accent"], rect, 2, border_radius=6)
+            text = tape_font.render(sym, True, COLORS["text"])
+            self.screen.blit(text, text.get_rect(center=rect.center))
+
+        title_rect = title_text.get_rect(center=(x_center, title_y))
+        padding_x = int(20 * scale)
+        padding_y = int(10 * scale)
+        title_box = pygame.Rect(
+            title_rect.x - padding_x,
+            title_rect.y - padding_y,
+            title_rect.width + padding_x * 2,
+            title_rect.height + padding_y * 2
+        )
+
+        pygame.draw.rect(self.screen, (50, 70, 110), title_box, border_radius=8)
+        pygame.draw.rect(self.screen, COLORS["accent"], title_box, 2, border_radius=8)
+        self.screen.blit(title_text, title_rect)
 
         for button in self.buttons:
             button.draw(self.screen)

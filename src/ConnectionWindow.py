@@ -18,9 +18,9 @@ class ConnectionWindow:
         self.selected_write1 = connection.write
         self.selected_move1 = connection.move
 
-        self.selected_read2 = set()
+        self.selected_read2 = {"_"}
         self.selected_write2 = None
-        self.selected_move2 = None
+        self.selected_move2 = "S"
 
         self.width = 800 if double_tape else 600
         self.height = 420
