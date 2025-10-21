@@ -10,6 +10,9 @@ from save_manager import load_progress, is_level_complete, get_level_solution, d
 from NewLevelPopUp import NewLevelPopup
 from Level import Level
 from WorkshopMenu import WorkshopMenu
+from AuthenticationPopup import AuthenticationPopup
+import auth_manager
+from save_manager import serialize_level_to_string
 
 
 class LevelSelectMenu:
@@ -26,6 +29,15 @@ class LevelSelectMenu:
         self.selected_level = list(self.level_groups[self.selected_type])[0]
         self.level_buttons = []
         self.type_buttons = []
+        self.auth_popup = None
+
+        token, user = auth_manager.load_session()
+        if token and user:
+            print(f"Loaded session for {user['username']}")
+            self.current_user = user
+        else:
+            self.current_user = None
+
 
 
         self.play_button = Button("Play Level", (0.35, 0.88, 0.57, 0.08), self.font_medium, self._confirm_play)
@@ -69,6 +81,7 @@ class LevelSelectMenu:
             for lvl in custom_levels:
                 lvl.type = "Custom"
                 self.level_groups["Custom"].append(lvl)
+                print(serialize_level_to_string(lvl.to_dict()))
 
         self.workshop_levels = self._load_workshop_levels()
         if self.workshop_levels:
@@ -85,7 +98,7 @@ class LevelSelectMenu:
 
     def _build_type_buttons(self):
         self.type_buttons.clear()
-        y_offset = 0.25
+        y_offset = 0.15
         spacing = 0.1
         for i, t in enumerate(self.level_groups.keys()):
             self.type_buttons.append(
@@ -139,6 +152,14 @@ class LevelSelectMenu:
             self.level_to_start = self.selected_level
 
     def handle_event(self, event):
+        if self.auth_popup:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.auth_popup = None
+                    return
+            self.auth_popup.handle_event(event)
+            return
+
         if self.new_level_popup:
             self.new_level_popup.handle_event(event)
             return
@@ -294,6 +315,9 @@ class LevelSelectMenu:
         if self.workshop_menu:
             self.workshop_menu.draw()
 
+        if self.auth_popup:
+            self.auth_popup.draw()
+
 
     def _wrap_text(self, text, max_width):
         words = text.split()
@@ -384,6 +408,9 @@ class LevelSelectMenu:
         self._build_level_buttons()
 
     def _open_workshop_menu(self):
+        if not self.current_user:
+            self.auth_popup = AuthenticationPopup(self.screen, self._on_authenticated)
+            return
         self.workshop_menu = WorkshopMenu(self.screen, self._on_workshop_closed)
         self.workshop_levels = self._load_workshop_levels()
         if "Workshop" in self.level_groups:
@@ -421,4 +448,13 @@ class LevelSelectMenu:
                 except Exception as e:
                     print("Error loading workshop level:", filename, e)
         return levels
+
+    def _on_authenticated(self, user):
+        if user == None:
+            self.auth_popup = None
+            return
+        self.current_user = user
+        self.auth_popup = None
+        print(f"Authenticated as {user['username']}")
+        self._open_workshop_menu()
 

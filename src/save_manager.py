@@ -3,9 +3,11 @@ import os, json, requests
 from Level import Level
 
 
-def get_save_dir():
+def get_save_dir(custom_levels=False):
     base = os.path.expanduser("~/Documents")
     path = os.path.join(base, "Turing Sandbox Saves")
+    if custom_levels:
+        path = os.path.join(path, "custom_levels")
     os.makedirs(path, exist_ok=True)
     return path
 
@@ -22,6 +24,25 @@ def list_saves():
             except Exception as e:
                 print("Error reading save:", f, e)
     return sorted(saves, key=lambda s: s["name"])
+
+def list_custom_levels():
+    path = get_save_dir(custom_levels=True)
+    levels = []
+    for f in os.listdir(path):
+        if f.endswith(".json"):
+            full_path = os.path.join(path, f)
+            try:
+                with open(full_path, "r", encoding="utf-8") as file:
+                    data = json.load(file)
+                    levels.append({
+                        "name": data.get("name", f[:-5]),
+                        "description": data.get("description", ""),
+                        "path": full_path,
+                        "data": data
+                    })
+            except Exception as e:
+                print("Error reading custom level:", f, e)
+    return sorted(levels, key=lambda s: s["name"])
 
 def save_machine(name, data):
     path = os.path.join(get_save_dir(), f"{name}.json")
@@ -93,17 +114,8 @@ def serialize_level_to_string(level_data: dict) -> str:
         print(f"[serialize_level_to_string] Failed to encode JSON: {e}")
         return "{}"
 
-import json
-import requests
-from Level import Level
 
 def deserialize_level_from_string(level_source) -> Level:
-    """
-    Converts a Response, string, or dict into a proper Level object.
-    Handles both:
-      - raw JSON with {"version":1,"data":{...}}
-      - API responses like {"id":1,"name":"...","levelData":"{...}"}
-    """
     try:
         if isinstance(level_source, requests.Response):
             try:
@@ -120,15 +132,24 @@ def deserialize_level_from_string(level_source) -> Level:
             raise TypeError(f"Unsupported type for level_source: {type(level_source)}")
 
         if "levelData" in wrapper:
-            inner_data = json.loads(wrapper["levelData"])
+            inner_data = wrapper["levelData"]
+
+            if isinstance(inner_data, str):
+                try:
+                    inner_data = json.loads(inner_data)
+                except Exception:
+                    pass
+            if isinstance(inner_data, str) and inner_data.startswith("{"):
+                try:
+                    inner_data = json.loads(inner_data)
+                except Exception:
+                    pass
+
             if "data" in inner_data:
                 inner_data = inner_data["data"]
+
+            inner_data["level_type"] = inner_data.get("type", "Workshop")
             return Level.from_dict(inner_data)
-
-        if "data" in wrapper:
-            return Level.from_dict(wrapper["data"])
-
-        return Level.from_dict(wrapper)
 
     except Exception as e:
         print(f"[deserialize_level_from_string] Failed to decode JSON: {e}")
