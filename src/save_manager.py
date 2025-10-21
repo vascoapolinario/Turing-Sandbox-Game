@@ -1,4 +1,7 @@
-import os, json
+import os, json, requests
+
+from Level import Level
+
 
 def get_save_dir():
     base = os.path.expanduser("~/Documents")
@@ -75,3 +78,61 @@ def is_level_complete(level_name):
 
 def get_level_solution(level_name):
     return load_progress().get(level_name, {}).get("solution", None)
+
+def serialize_level_to_string(level_data: dict) -> str:
+    wrapper = {
+        "version": 1,
+        "game": "Turing Sandbox",
+        "source": "Python",
+        "data": level_data
+    }
+
+    try:
+        return json.dumps(wrapper, ensure_ascii=False, separators=(",", ":"))
+    except Exception as e:
+        print(f"[serialize_level_to_string] Failed to encode JSON: {e}")
+        return "{}"
+
+import json
+import requests
+from Level import Level
+
+def deserialize_level_from_string(level_source) -> Level:
+    """
+    Converts a Response, string, or dict into a proper Level object.
+    Handles both:
+      - raw JSON with {"version":1,"data":{...}}
+      - API responses like {"id":1,"name":"...","levelData":"{...}"}
+    """
+    try:
+        if isinstance(level_source, requests.Response):
+            try:
+                wrapper = level_source.json()
+            except ValueError:
+                wrapper = json.loads(level_source.text)
+
+        elif isinstance(level_source, str):
+            wrapper = json.loads(level_source)
+
+        elif isinstance(level_source, dict):
+            wrapper = level_source
+        else:
+            raise TypeError(f"Unsupported type for level_source: {type(level_source)}")
+
+        if "levelData" in wrapper:
+            inner_data = json.loads(wrapper["levelData"])
+            if "data" in inner_data:
+                inner_data = inner_data["data"]
+            return Level.from_dict(inner_data)
+
+        if "data" in wrapper:
+            return Level.from_dict(wrapper["data"])
+
+        return Level.from_dict(wrapper)
+
+    except Exception as e:
+        print(f"[deserialize_level_from_string] Failed to decode JSON: {e}")
+        return Level(name="Invalid Level", description="Failed to load", objective="N/A")
+
+
+
