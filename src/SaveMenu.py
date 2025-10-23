@@ -4,7 +4,7 @@ from Button import Button
 import save_manager
 
 class SaveMenu:
-    def __init__(self, screen, turing_machine, on_close, on_load):
+    def __init__(self, screen, turing_machine, on_close, on_load, upload_mode=False, on_upload=None):
         self.screen = screen
         self.visible = False
         self.font = pygame.font.SysFont("futura", 26, bold=True)
@@ -12,6 +12,9 @@ class SaveMenu:
         self.turing_machine = turing_machine
         self.on_close = on_close
         self.on_load = on_load
+
+        self.upload_mode = upload_mode
+        self.on_upload = on_upload
 
         self.page = 0
         self.per_page = 6
@@ -41,6 +44,7 @@ class SaveMenu:
         self.input_text = ""
         self.on_close()
 
+
     def new_save_prompt(self):
         self.input_active = True
         self.input_text = ""
@@ -59,7 +63,8 @@ class SaveMenu:
             return
         screen_size = self.screen.get_size()
         self.close_button.update_rect(screen_size)
-        self.new_button.update_rect(screen_size)
+        if not self.upload_mode:
+            self.new_button.update_rect(screen_size)
         self.prev_button.update_rect(screen_size)
         self.next_button.update_rect(screen_size)
 
@@ -83,7 +88,8 @@ class SaveMenu:
             return
 
         self.close_button.handle_event(event)
-        self.new_button.handle_event(event)
+        if not self.upload_mode:
+            self.new_button.handle_event(event)
         self.prev_button.handle_event(event)
         self.next_button.handle_event(event)
 
@@ -104,7 +110,10 @@ class SaveMenu:
                         return
 
                     if slot_rect.collidepoint(x, y):
-                        self.on_load(save["name"])
+                        if self.upload_mode and self.on_upload:
+                            self.on_upload(save)
+                        else:
+                            self.on_load(save["name"])
                         self.close()
                         return
 
@@ -118,7 +127,8 @@ class SaveMenu:
         overlay.fill((10, 15, 30))
         self.screen.blit(overlay, (0, 0))
 
-        title = self.font.render("Saved Turing Machines", True, COLORS["accent"])
+        title_text = "Upload a Machine" if self.upload_mode else "Saved Turing Machines"
+        title = self.font.render(title_text, True, COLORS["accent"])
         self.screen.blit(title, (w/2 - title.get_width()/2, 40))
 
         grid_rect = self._grid_rect()
@@ -126,7 +136,8 @@ class SaveMenu:
         pygame.draw.rect(self.screen, COLORS["accent"], grid_rect, 2, border_radius=18)
 
         self.close_button.draw(self.screen)
-        self.new_button.draw(self.screen)
+        if not self.upload_mode:
+            self.new_button.draw(self.screen)
         self.prev_button.draw(self.screen)
         self.next_button.draw(self.screen)
 

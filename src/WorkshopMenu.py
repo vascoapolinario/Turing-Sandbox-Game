@@ -6,9 +6,10 @@ import requests
 import auth_manager
 from Button import Button, COLORS
 from FontManager import FontManager
-from save_manager import list_custom_levels, deserialize_level_from_string
+from save_manager import list_custom_levels, deserialize_level_from_string, list_saves, load_machine
+from SaveMenu import SaveMenu
 
-API_URL = "https://localhost:7054/workshop"
+API_URL = "https://turingmachinesapi.onrender.com/workshop"
 VERIFY_SSL = False
 PAGE_SIZE = 6
 WORKSHOP_DIR = os.path.expanduser("~/Documents/Turing Sandbox Saves/workshop")
@@ -44,6 +45,10 @@ class WorkshopMenu:
         self.input_active = False
         self.levels = []
         self.page = 0
+
+        self.active_tab = "Level"
+        self.btn_tab_level = Button("Levels", (0.25, 0.03, 0.15, 0.06), self.font_body, self._switch_to_levels)
+        self.btn_tab_machine = Button("Machines", (0.43, 0.03, 0.15, 0.06), self.font_body, self._switch_to_machines)
 
         self.btn_back = Button("Back", (0.04, 0.03, 0.12, 0.06), self.font_body, self._close)
         self.btn_search = Button("Search", (0.73, 0.15, 0.15, 0.05), self.font_body, self._do_search)
@@ -156,6 +161,10 @@ class WorkshopMenu:
             print("Failed to load custom levels:", e)
 
     def handle_event(self, event):
+        if hasattr(self, "save_menu") and self.save_menu.visible:
+            self.save_menu.handle_event(event)
+            return
+
         if event.type == pygame.KEYDOWN and not self.input_active:
             if event.key == pygame.K_ESCAPE and self.adding_mode:
                 self._close_upload_popup()
@@ -182,6 +191,9 @@ class WorkshopMenu:
 
         for b in [self.btn_back, self.btn_search, self.btn_prev, self.btn_next, self.btn_add]:
             b.handle_event(event)
+
+        for btn in [self.btn_tab_level, self.btn_tab_machine]:
+            btn.handle_event(event)
 
         for (btn, dto, rect, stars_rects) in self._card_buttons_cache:
             btn.handle_event(event)
@@ -218,6 +230,16 @@ class WorkshopMenu:
         title = self.font_title.render("Workshop Browser", True, COLORS["text"])
         self.screen.blit(title, (container.centerx - title.get_width() // 2, int(h * 0.03)))
 
+        for btn in [self.btn_tab_level, self.btn_tab_machine]:
+            btn.update_rect((w, h))
+            btn.draw(self.screen)
+
+        active_color = COLORS["accent"]
+        if self.active_tab == "Level":
+            pygame.draw.rect(self.screen, active_color, self.btn_tab_level.rect, 2, border_radius=10)
+        else:
+            pygame.draw.rect(self.screen, active_color, self.btn_tab_machine.rect, 2, border_radius=10)
+
         for b in [self.btn_back, self.btn_add]:
             b.update_rect((w, h))
             b.draw(self.screen)
@@ -225,6 +247,11 @@ class WorkshopMenu:
         self._draw_search_bar(container)
         self._draw_level_grid(self._levels_on_current_page(), container)
         self._draw_pagination(container)
+
+        if hasattr(self, "save_menu") and self.save_menu.visible:
+            self.save_menu.draw()
+            return
+
         if self.adding_mode:
             self._draw_add_menu()
             return
@@ -287,7 +314,7 @@ class WorkshopMenu:
             name = dto.get("name", "Unnamed")
             author = dto.get("author", "Unknown")
             description = dto.get("description", "")
-            rating = dto.get("rating", 0)
+            subscribers = dto.get("subscribers", 0)
 
             title_y = rect.y + int(rect.height * 0.10)
             desc_y = rect.y + int(rect.height * 0.45)
@@ -296,7 +323,9 @@ class WorkshopMenu:
             avg_rating = dto.get("rating", 0)
             title_text = f"{name} ({avg_rating:.1f}/5)"
             title = self.font_h3.render(title_text, True, COLORS["accent"])
+            subscribers_text = self.font_tiny.render(f"Subscribers: {subscribers}", True, COLORS["text"])
             self.screen.blit(title, (rect.x + int(rect.width * 0.03), title_y))
+            self.screen.blit(subscribers_text, (rect.right - subscribers_text.get_width() - int(rect.width * 0.03), title_y))
 
             desc = self.font_body.render(description[:50] + ("..." if len(description) > 50 else ""), True,
                                          COLORS["text"])
@@ -333,9 +362,10 @@ class WorkshopMenu:
         self._buttons_dirty = True
 
     def _levels_on_current_page(self):
+        filtered = [x for x in self.levels if x.get("type", "").lower() == self.active_tab.lower()]
         start = self.page * PAGE_SIZE
         end = start + PAGE_SIZE
-        return self.levels[start:end]
+        return filtered[start:end]
 
     def _prev_page(self):
         if self.page > 0:
@@ -358,6 +388,8 @@ class WorkshopMenu:
 
         pad = 12
         text = self.search_query if self.search_query else "Search levels by name..."
+        if text == "Search levels by name..." and self.active_tab == "Machine":
+            text = "Search machines by name..."
         color = COLORS["text"] if self.search_query else (150, 150, 160)
         surf = self.font_body.render(text, True, color)
         self.screen.blit(surf, (rect.x + pad, rect.y + (rect.height - surf.get_height()) // 2))
@@ -394,6 +426,8 @@ class WorkshopMenu:
         pygame.draw.rect(self.screen, COLORS["accent"], rect, 2, border_radius=14)
 
         title = self.font_h3.render("Upload Custom Level", True, COLORS["accent"])
+        if self.active_tab == "Machine":
+            title = self.font_h3.render("Upload Custom Machine", True, COLORS["accent"])
         self.screen.blit(title, (rect.centerx - title.get_width() // 2, rect.y + 20))
 
         card_h = 50
@@ -421,6 +455,94 @@ class WorkshopMenu:
         if event.type == pygame.MOUSEWHEEL:
             self.add_scroll = max(0, min(self.add_scroll - event.y, len(self.custom_levels) - 6))
             self._setup_upload_buttons()
+
+    def _add_machine(self):
+        def on_upload(save):
+            try:
+                data = load_machine(save["name"])
+                headers = auth_manager.get_auth_headers()
+                payload = {
+                    "name": save["name"],
+                    "description": "",
+                    "authorName": auth_manager.get_username(),
+                    "type": "Machine",
+                    "machineData": json.dumps(data, ensure_ascii=False)
+                }
+                r = requests.post(API_URL, json=payload, headers=headers, verify=VERIFY_SSL)
+                if r.status_code in (200, 201):
+                    print(f"Uploaded machine {save['name']} successfully!")
+                    self._fetch_levels()
+                else:
+                    print("Upload failed:", r.status_code, r.text)
+            except Exception as e:
+                print("Upload error:", e)
+
+        self.save_menu = SaveMenu(
+            self.screen,
+            turing_machine=None,
+            on_close=self._close_save_menu,
+            on_load=None,
+            upload_mode=True,
+            on_upload=on_upload
+        )
+        self.save_menu.show()
+
+    def _close_save_menu(self):
+        if hasattr(self, "save_menu"):
+            self.save_menu.visible = False
+            del self.save_menu
+
+    def _setup_upload_buttons_machine(self):
+        self._upload_buttons = []
+        w, h = self.screen.get_size()
+        modal_w, modal_h = int(w * 0.5), int(h * 0.5)
+        modal_x, modal_y = (w - modal_w) // 2, (h - modal_h) // 2
+        card_h = 50
+        padding = 10
+        start_y = modal_y + 80
+        visible = self.custom_machines[self.add_scroll:self.add_scroll + 6]
+
+        for i, m in enumerate(visible):
+            y = start_y + i * (card_h + padding)
+            btn_x = modal_x + modal_w - 130
+            btn_y = y + (card_h - 36) // 2
+            btn = Button(
+                "Upload",
+                (btn_x / w, btn_y / h, 100 / w, 36 / h),
+                self.font_tiny,
+                lambda machine=m: self._upload_machine(m)
+            )
+            self._upload_buttons.append(btn)
+
+        close_btn = Button(
+            "Close",
+            ((modal_x + modal_w - 120) / w, (modal_y + 20) / h, 90 / w, 36 / h),
+            self.font_tiny,
+            self._close_upload_popup
+        )
+        self._upload_buttons.append(close_btn)
+
+    def _upload_machine(self, machine):
+        try:
+            headers = auth_manager.get_auth_headers()
+            payload = {
+                "name": machine["name"],
+                "description": machine.get("description", ""),
+                "authorName": auth_manager.get_username(),
+                "type": "Machine",
+                "machineData": json.dumps(machine["data"], ensure_ascii=False)
+            }
+
+            r = requests.post(API_URL, json=payload, headers=headers, verify=VERIFY_SSL)
+            if r.status_code in (200, 201):
+                print(f"Uploaded machine {machine['name']} successfully!")
+                self._close_upload_popup()
+                self._fetch_levels()
+                self._buttons_dirty = True
+            else:
+                print("Upload failed:", r.status_code, r.text)
+        except Exception as e:
+            print("Upload error:", e)
 
     def _upload_level(self, lvl):
         try:
@@ -476,6 +598,18 @@ class WorkshopMenu:
             self._close_upload_popup
         )
         self._upload_buttons.append(close_btn)
+
+    def _switch_to_levels(self):
+        self.active_tab = "Level"
+        self.btn_add.text = "Add Level"
+        self.btn_add.callback = self._add_level
+        self._buttons_dirty = True
+
+    def _switch_to_machines(self):
+        self.active_tab = "Machine"
+        self.btn_add.text = "Add Machine"
+        self.btn_add.callback = self._add_machine
+        self._buttons_dirty = True
 
     def _close_upload_popup(self):
         self.adding_mode = False

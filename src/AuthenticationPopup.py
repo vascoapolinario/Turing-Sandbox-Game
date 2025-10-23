@@ -7,7 +7,7 @@ from Button import Button, COLORS
 from FontManager import FontManager
 import auth_manager
 
-API_URL = "https://localhost:7054/players"
+API_URL = "https://turingmachinesapi.onrender.com/players"
 VERIFY_SSL = False
 
 

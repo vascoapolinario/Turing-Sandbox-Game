@@ -3,7 +3,7 @@ import json
 import requests
 
 SESSION_PATH = os.path.expanduser("~/Documents/Turing Sandbox Saves/Auth/session.json")
-API_VERIFY_URL = "https://localhost:7054/players/verify"
+API_VERIFY_URL = "https://turingmachinesapi.onrender.com/players/verify"
 VERIFY_SSL = False
 
 
@@ -36,6 +36,9 @@ def load_session():
             if verified.get("valid") and verified_user.get("username"):
                 save_session(token, verified_user)
                 return token, verified_user
+        elif r.status_code == 429:
+            print("Rate limited while verifying token; assuming valid.")
+            return token, user
         else:
             print(f"Token invalid (status {r.status_code}), clearing session.")
             clear_session()

@@ -155,5 +155,46 @@ def deserialize_level_from_string(level_source) -> Level:
         print(f"[deserialize_level_from_string] Failed to decode JSON: {e}")
         return Level(name="Invalid Level", description="Failed to load", objective="N/A")
 
+def serialize_machine_to_string(machine_data: dict) -> str:
+    wrapper = {
+        "version": 1,
+        "game": "Turing Sandbox",
+        "source": "Python",
+        "data": machine_data
+    }
+
+    try:
+        return json.dumps(wrapper, ensure_ascii=False, separators=(",", ":"))
+    except Exception as e:
+        print(f"[serialize_machine_to_string] Failed to encode JSON: {e}")
+        return "{}"
+
+def deserialize_machine_from_string(machine_source) -> dict:
+    try:
+        if isinstance(machine_source, requests.Response):
+            wrapper = machine_source.json()
+        elif isinstance(machine_source, str):
+            wrapper = json.loads(machine_source)
+        elif isinstance(machine_source, dict):
+            wrapper = machine_source
+        else:
+            raise TypeError(f"Unsupported type: {type(machine_source)}")
+
+        if "machineData" in wrapper:
+            inner_data = wrapper["machineData"]
+            if isinstance(inner_data, str):
+                inner_data = json.loads(inner_data)
+            if "data" in inner_data:
+                return inner_data["data"]
+            return inner_data
+
+        return wrapper
+    except Exception as e:
+        print(f"[deserialize_machine_from_string] Failed to decode JSON: {e}")
+        return {}
+
+
+
+
 
 

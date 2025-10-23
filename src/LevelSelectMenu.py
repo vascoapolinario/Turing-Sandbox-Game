@@ -33,7 +33,6 @@ class LevelSelectMenu:
 
         token, user = auth_manager.load_session()
         if token and user:
-            print(f"Loaded session for {user['username']}")
             self.current_user = user
         else:
             self.current_user = None
