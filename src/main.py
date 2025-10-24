@@ -64,7 +64,7 @@ def main():
 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    if state == "level_select":
+                    if state == "level_select" and level_menu.new_level_popup is None and level_menu.workshop_menu is None and level_menu.auth_popup is None:
                         state = "main_menu"
                         menu = MainMenu(screen)
             if state == "main_menu":
@@ -118,8 +118,8 @@ def main():
                     elif state == "environment":
                         rpc.update(state=f"Playing level: {env.level.name}", details="Building a Turing Machine!", large_image="logo")
                     previous_state = state
-            except Exception as e:
-                print("Discord RPC error:", e)
+            except Exception as ex:
+                print("Discord RPC error:", ex)
                 discord_available = False
 
         pygame.display.flip()

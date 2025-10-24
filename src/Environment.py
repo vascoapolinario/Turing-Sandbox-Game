@@ -461,8 +461,11 @@ class Environment:
         self.pause_menu.hide()
         self.save_menu.show()
 
-    def _load_named_machine(self, name):
-        data = save_manager.load_machine(name)
+    def _load_named_machine(self, save):
+        name = save["name"] if isinstance(save, dict) else save
+        is_workshop = isinstance(save, dict) and save.get("workshop", False)
+
+        data = save_manager.load_machine(name, workshop=is_workshop)
         Node._id_counter = 0
         self.TuringMachine.deserialize(data)
 

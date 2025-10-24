@@ -9,6 +9,10 @@ from collections import defaultdict
 from save_manager import load_progress, is_level_complete, get_level_solution, delete_progress
 from NewLevelPopUp import NewLevelPopup
 from Level import Level
+from WorkshopMenu import WorkshopMenu
+from AuthenticationPopup import AuthenticationPopup
+import request_helper
+
 
 
 class LevelSelectMenu:
@@ -25,6 +29,9 @@ class LevelSelectMenu:
         self.selected_level = list(self.level_groups[self.selected_type])[0]
         self.level_buttons = []
         self.type_buttons = []
+        self.auth_popup = None
+        self.current_user = None
+
 
 
         self.play_button = Button("Play Level", (0.35, 0.88, 0.57, 0.08), self.font_medium, self._confirm_play)
@@ -55,11 +62,26 @@ class LevelSelectMenu:
         )
         self.new_level_popup = None
 
+        self.workshop_button = Button(
+            "Browse Workshop",
+            (0.05, 0.78, 0.22, 0.08),
+            self.font_medium,
+            self._open_workshop_menu
+        )
+        self.workshop_menu = None
+
         custom_levels = self._load_custom_levels()
         if custom_levels:
             for lvl in custom_levels:
                 lvl.type = "Custom"
                 self.level_groups["Custom"].append(lvl)
+
+        self.workshop_levels = self._load_workshop_levels()
+        if self.workshop_levels:
+            for lvl in self.workshop_levels:
+                lvl.type = "Workshop"
+                self.level_groups["Workshop"].append(lvl)
+
 
         self._build_type_buttons()
         self._build_level_buttons()
@@ -69,7 +91,7 @@ class LevelSelectMenu:
 
     def _build_type_buttons(self):
         self.type_buttons.clear()
-        y_offset = 0.25
+        y_offset = 0.15
         spacing = 0.1
         for i, t in enumerate(self.level_groups.keys()):
             self.type_buttons.append(
@@ -123,8 +145,20 @@ class LevelSelectMenu:
             self.level_to_start = self.selected_level
 
     def handle_event(self, event):
+        if self.auth_popup:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.auth_popup = None
+                    return
+            self.auth_popup.handle_event(event)
+            return
+
         if self.new_level_popup:
             self.new_level_popup.handle_event(event)
+            return
+
+        if self.workshop_menu:
+            self.workshop_menu.handle_event(event)
             return
 
         if self.selected_type == "Custom" and event.type == pygame.MOUSEBUTTONDOWN:
@@ -146,6 +180,7 @@ class LevelSelectMenu:
             self.solution_button.handle_event(event)
         self.play_button.handle_event(event)
         self.resetAllProgress_button.handle_event(event)
+        self.workshop_button.handle_event(event)
 
     def update(self):
         w, h = self.screen.get_size()
@@ -264,9 +299,17 @@ class LevelSelectMenu:
         self.resetAllProgress_button.draw(self.screen)
         self.new_level_button.update_rect((w, h))
         self.new_level_button.draw(self.screen)
+        self.workshop_button.update_rect((w, h))
+        self.workshop_button.draw(self.screen)
 
         if self.new_level_popup:
             self.new_level_popup.draw()
+
+        if self.workshop_menu:
+            self.workshop_menu.draw()
+
+        if self.auth_popup:
+            self.auth_popup.draw()
 
 
     def _wrap_text(self, text, max_width):
@@ -296,6 +339,7 @@ class LevelSelectMenu:
             on_save=self._save_new_level,
             on_cancel=self._close_new_level_popup
         )
+
 
     def _save_new_level(self, level):
         base = os.path.expanduser("~/Documents/Turing Sandbox Saves/custom_levels")
@@ -355,3 +399,61 @@ class LevelSelectMenu:
 
         self._build_type_buttons()
         self._build_level_buttons()
+
+    def _open_workshop_menu(self):
+        token, user = request_helper.load_session()
+        if token is not None and user is not None:
+            request_helper.verify_authentication()
+            if request_helper.is_authenticated():
+                self.current_user = user
+        if self.current_user is None:
+            self.auth_popup = AuthenticationPopup(self.screen, self._on_authenticated)
+            return
+        else:
+            self.workshop_menu = WorkshopMenu(self.screen, self._on_workshop_closed)
+            self.workshop_levels = self._load_workshop_levels()
+            if "Workshop" in self.level_groups:
+                self._select_type("Tutorial")
+                self._build_type_buttons()
+                self._build_level_buttons()
+
+    def _on_workshop_closed(self):
+        self.workshop_menu = None
+        self.workshop_levels = self._load_workshop_levels()
+
+        if self.workshop_levels:
+            self.level_groups["Workshop"] = self.workshop_levels
+
+        elif "Workshop" in self.level_groups:
+            del self.level_groups["Workshop"]
+
+            if self.selected_type == "Workshop" and self.level_groups:
+                self.selected_type = list(self.level_groups.keys())[0]
+                self.selected_level = self.level_groups[self.selected_type][0]
+
+        self._build_type_buttons()
+        self._build_level_buttons()
+
+    def _load_workshop_levels(self):
+        base = os.path.expanduser("~/Documents/Turing Sandbox Saves/workshop_levels")
+        os.makedirs(base, exist_ok=True)
+        levels = []
+        for filename in os.listdir(base):
+            if filename.endswith(".json"):
+                try:
+                    with open(os.path.join(base, filename), "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        levels.append(Level.from_dict(data))
+                except Exception as e:
+                    print("Error loading workshop level:", filename, e)
+        return levels
+
+    def _on_authenticated(self, user):
+        if user == None:
+            self.auth_popup = None
+            return
+        self.current_user = user
+        self.auth_popup = None
+        print(f"Authenticated as {user['username']}")
+        self._open_workshop_menu()
+
