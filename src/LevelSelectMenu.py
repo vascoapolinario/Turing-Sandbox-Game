@@ -11,8 +11,8 @@ from NewLevelPopUp import NewLevelPopup
 from Level import Level
 from WorkshopMenu import WorkshopMenu
 from AuthenticationPopup import AuthenticationPopup
-import auth_manager
-from save_manager import serialize_level_to_string
+import request_helper
+
 
 
 class LevelSelectMenu:
@@ -31,8 +31,8 @@ class LevelSelectMenu:
         self.type_buttons = []
         self.auth_popup = None
 
-        token, user = auth_manager.load_session()
-        if token and user:
+        token, user = request_helper.load_session()
+        if token is not None and user is not None:
             self.current_user = user
         else:
             self.current_user = None
@@ -80,7 +80,6 @@ class LevelSelectMenu:
             for lvl in custom_levels:
                 lvl.type = "Custom"
                 self.level_groups["Custom"].append(lvl)
-                print(serialize_level_to_string(lvl.to_dict()))
 
         self.workshop_levels = self._load_workshop_levels()
         if self.workshop_levels:
@@ -407,15 +406,16 @@ class LevelSelectMenu:
         self._build_level_buttons()
 
     def _open_workshop_menu(self):
-        if not self.current_user:
+        if self.current_user is None:
             self.auth_popup = AuthenticationPopup(self.screen, self._on_authenticated)
             return
-        self.workshop_menu = WorkshopMenu(self.screen, self._on_workshop_closed)
-        self.workshop_levels = self._load_workshop_levels()
-        if "Workshop" in self.level_groups:
-            self._select_type("Tutorial")
-            self._build_type_buttons()
-            self._build_level_buttons()
+        else:
+            self.workshop_menu = WorkshopMenu(self.screen, self._on_workshop_closed)
+            self.workshop_levels = self._load_workshop_levels()
+            if "Workshop" in self.level_groups:
+                self._select_type("Tutorial")
+                self._build_type_buttons()
+                self._build_level_buttons()
 
     def _on_workshop_closed(self):
         self.workshop_menu = None
@@ -435,7 +435,7 @@ class LevelSelectMenu:
         self._build_level_buttons()
 
     def _load_workshop_levels(self):
-        base = os.path.expanduser("~/Documents/Turing Sandbox Saves/workshop")
+        base = os.path.expanduser("~/Documents/Turing Sandbox Saves/workshop_levels")
         os.makedirs(base, exist_ok=True)
         levels = []
         for filename in os.listdir(base):

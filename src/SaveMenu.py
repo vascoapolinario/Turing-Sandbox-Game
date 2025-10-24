@@ -27,10 +27,19 @@ class SaveMenu:
         self.prev_button = Button("< Prev", (0.30, 0.88, 0.15, 0.07), self.small, self.prev_page)
         self.next_button = Button("Next >", (0.55, 0.88, 0.15, 0.07), self.small, self.next_page)
 
+        self.active_tab = "My Machines"
+        self.btn_tab_my = Button("My Machines", (0.27, 0.12, 0.18, 0.07), self.small,
+                                 lambda: self._switch_tab("My Machines"))
+        self.btn_tab_workshop = Button("Workshop Machines", (0.55, 0.12, 0.18, 0.07),
+                                       self.small, lambda: self._switch_tab("Workshop Machines"))
+
         self.refresh()
 
     def refresh(self):
-        self.saves = save_manager.list_saves()
+        if self.active_tab == "Workshop Machines":
+            self.saves = save_manager.list_saves(workshop_machine=True)
+        else:
+            self.saves = save_manager.list_saves()
         total_pages = max(1, (len(self.saves) - 1) // self.per_page + 1)
         self.page = min(self.page, total_pages - 1)
 
@@ -61,12 +70,54 @@ class SaveMenu:
     def update(self):
         if not self.visible:
             return
-        screen_size = self.screen.get_size()
-        self.close_button.update_rect(screen_size)
-        if not self.upload_mode:
-            self.new_button.update_rect(screen_size)
-        self.prev_button.update_rect(screen_size)
-        self.next_button.update_rect(screen_size)
+
+        w, h = self.screen.get_size()
+        grid_rect = self._grid_rect()
+
+        margin = h * 0.02
+
+        tab_y_ratio = (grid_rect.y - h * 0.1) / h
+        tab_h_ratio = grid_rect.height * 0.08 / h
+        tab_w_ratio = grid_rect.width * 0.35 / w
+
+        self.btn_tab_my.normalized_rect = (0.27, tab_y_ratio, 0.18, tab_h_ratio)
+        self.btn_tab_workshop.normalized_rect = (0.55, tab_y_ratio, 0.18, tab_h_ratio)
+
+        for b in [self.btn_tab_my, self.btn_tab_workshop]:
+            b.update_rect((w, h))
+
+        base_font = int(max(18, h * 0.022))
+        small_font = int(max(14, h * 0.018))
+        self.font = pygame.font.SysFont("futura", base_font, bold=True)
+        self.small = pygame.font.SysFont("futura", small_font)
+
+        self.close_button.rect = pygame.Rect(
+            grid_rect.x - grid_rect.width * 0.12,
+            grid_rect.y,
+            grid_rect.width * 0.15,
+            grid_rect.height * 0.08
+        )
+        self.new_button.rect = pygame.Rect(
+            grid_rect.right - grid_rect.width * 0.03,
+            grid_rect.y,
+            grid_rect.width * 0.18,
+            grid_rect.height * 0.08
+        )
+        self.prev_button.rect = pygame.Rect(
+            grid_rect.x + grid_rect.width * 0.25,
+            grid_rect.bottom + margin,
+            grid_rect.width * 0.20,
+            grid_rect.height * 0.08
+        )
+        self.next_button.rect = pygame.Rect(
+            grid_rect.x + grid_rect.width * 0.55,
+            grid_rect.bottom + margin,
+            grid_rect.width * 0.20,
+            grid_rect.height * 0.08
+        )
+
+        for b in [self.close_button, self.new_button, self.prev_button, self.next_button]:
+            b.update_rect((w, h))
 
     def handle_event(self, event):
         if not self.visible:
@@ -92,6 +143,8 @@ class SaveMenu:
             self.new_button.handle_event(event)
         self.prev_button.handle_event(event)
         self.next_button.handle_event(event)
+        self.btn_tab_my.handle_event(event)
+        self.btn_tab_workshop.handle_event(event)
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             x, y = event.pos
@@ -113,7 +166,9 @@ class SaveMenu:
                         if self.upload_mode and self.on_upload:
                             self.on_upload(save)
                         else:
-                            self.on_load(save["name"])
+                            save_data = dict(save)
+                            save_data["workshop"] = (self.active_tab == "Workshop Machines")
+                            self.on_load(save_data)
                         self.close()
                         return
 
@@ -122,6 +177,11 @@ class SaveMenu:
             return
 
         w, h = self.screen.get_size()
+
+        background = pygame.Surface((w, h))
+        background.fill((10, 15, 30))
+        self.screen.blit(background, (0, 0))
+
         overlay = pygame.Surface((w, h))
         overlay.set_alpha(160)
         overlay.fill((10, 15, 30))
@@ -130,6 +190,12 @@ class SaveMenu:
         title_text = "Upload a Machine" if self.upload_mode else "Saved Turing Machines"
         title = self.font.render(title_text, True, COLORS["accent"])
         self.screen.blit(title, (w/2 - title.get_width()/2, 40))
+
+        for b in [self.btn_tab_my, self.btn_tab_workshop]:
+            b.draw(self.screen)
+
+        active_btn = self.btn_tab_my if self.active_tab == "My Machines" else self.btn_tab_workshop
+        pygame.draw.rect(self.screen, COLORS["accent"], active_btn.rect, 3, border_radius=10)
 
         grid_rect = self._grid_rect()
         pygame.draw.rect(self.screen, (35, 45, 70), grid_rect, border_radius=18)
@@ -154,7 +220,7 @@ class SaveMenu:
             name_label = self.small.render(save["name"], True, COLORS["text"])
             self.screen.blit(name_label, (rect.x + 10, rect.y + 8))
             try:
-                data = save_manager.load_machine(save["name"])
+                data = save_manager.load_machine(save["name"], workshop =(self.active_tab == "Workshop Machines"))
                 self._draw_preview(data, rect)
             except Exception as e:
                 print("Error drawing preview:", e)
@@ -172,19 +238,27 @@ class SaveMenu:
         if self.input_active:
             self._draw_input_box()
 
+    def _switch_tab(self, tab):
+        self.active_tab = tab
+        self.page = 0
+        self.refresh()
+
     def _grid_rect(self):
         w, h = self.screen.get_size()
-        grid_width, grid_height = min(800, w * 0.9), min(400, h * 0.7)
-        x = w/2 - grid_width/2
-        y = h/2 - grid_height/2 + 30
+
+        grid_width = min(w * 0.75, 900)
+        grid_height = min(h * 0.55, 500)
+
+        x = (w - grid_width) / 2
+        y = (h - grid_height) / 2
         return pygame.Rect(x, y, grid_width, grid_height)
 
     def _slot_rect(self, i):
         grid = self._grid_rect()
         cols = 3
-        padding = 20
+        padding = grid.height * 0.05
         slot_w = (grid.width - padding * (cols + 1)) / cols
-        slot_h = 150
+        slot_h = grid.height * 0.4
         col = i % cols
         row = i // cols
         x = grid.x + padding + col * (slot_w + padding)

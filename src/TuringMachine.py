@@ -331,7 +331,8 @@ class TuringMachine:
                     "move2": c.move2
                 }
                 for c in self.connections
-            ]
+            ],
+            "alphabet": self.alphabet,
         }
 
     def deserialize(self, data):
@@ -367,3 +368,52 @@ class TuringMachine:
         self.current_node = next((n for n in self.nodes if getattr(n, "is_start", False)), None)
         self.finished = False
         self.running = False
+
+    @classmethod
+    def from_dict(cls, machine_data):
+        from Node import Node
+        from Connection import Connection
+        nodes = []
+        connections = []
+        id_to_node = {}
+        alphabet = ['_']
+
+        for ndata in machine_data.get("nodes", []):
+            node = Node(
+                pos=pygame.Vector2(ndata["x"], ndata["y"]),
+                is_start=ndata["is_start"],
+                is_end=ndata["is_end"]
+            )
+            node.id = ndata["id"]
+            nodes.append(node)
+            id_to_node[node.id] = node
+
+        for cdata in machine_data.get("connections", []):
+            start = id_to_node.get(cdata["start"])
+            end = id_to_node.get(cdata["end"])
+            if not start or not end:
+                continue
+            conn = Connection(start, end)
+            conn.update_logic(cdata["read"], cdata["write"], cdata["move"], cdata.get("read2"), cdata.get("write2"), cdata.get("move2"))
+            connections.append(conn)
+            for connection in connections:
+                if connection.start == start and connection.end == end:
+                    conn.label_offset += 15
+        for sym in machine_data.get("alphabet", []):
+            if sym not in alphabet:
+                alphabet.append(sym)
+
+        tm = cls(screen=None, nodes=nodes, connections=connections, tape=None, double_tape=False)
+        tm.name = machine_data.get("name", "Unnamed Machine")
+        tm.description = machine_data.get("description", "")
+        tm.alphabet = machine_data.get("alphabet", ["_"])
+        return tm
+
+    def to_dict(self):
+        return {
+            "name": getattr(self, "name", "Unnamed Machine"),
+            "description": getattr(self, "description", ""),
+            "alphabet": getattr(self, "alphabet", ["_"]),
+            "nodes": getattr(self, "nodes", []),
+            "connections": getattr(self, "connections", [])
+        }

@@ -3,16 +3,25 @@ import os, json, requests
 from Level import Level
 
 
-def get_save_dir(custom_levels=False):
+def get_save_dir(custom_levels=False, workshop_levels=False, workshop_machine=False):
     base = os.path.expanduser("~/Documents")
     path = os.path.join(base, "Turing Sandbox Saves")
     if custom_levels:
         path = os.path.join(path, "custom_levels")
+    if workshop_levels:
+        path = os.path.join(path, "workshop_levels")
+    if workshop_machine:
+        path = os.path.join(path, "workshop_machines")
     os.makedirs(path, exist_ok=True)
     return path
 
-def list_saves():
-    path = get_save_dir()
+def list_saves(workshop_levels=False, workshop_machine=False):
+    if workshop_levels:
+        path = get_save_dir(workshop_levels=True)
+    elif workshop_machine:
+        path = get_save_dir(workshop_machine=True)
+    else:
+        path = get_save_dir()
     saves = []
     for f in os.listdir(path):
         if f.endswith(".json"):
@@ -50,8 +59,11 @@ def save_machine(name, data):
         json.dump(data, f, indent=4)
     return path
 
-def load_machine(name):
-    path = os.path.join(get_save_dir(), f"{name}.json")
+def load_machine(name, workshop=False):
+    if workshop:
+        path = os.path.join(get_save_dir(workshop_machine=True), f"{name}.json")
+    else:
+        path = os.path.join(get_save_dir(), f"{name}.json")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -100,101 +112,39 @@ def is_level_complete(level_name):
 def get_level_solution(level_name):
     return load_progress().get(level_name, {}).get("solution", None)
 
-def serialize_level_to_string(level_data: dict) -> str:
-    wrapper = {
-        "version": 1,
-        "game": "Turing Sandbox",
-        "source": "Python",
-        "data": level_data
-    }
-
-    try:
-        return json.dumps(wrapper, ensure_ascii=False, separators=(",", ":"))
-    except Exception as e:
-        print(f"[serialize_level_to_string] Failed to encode JSON: {e}")
-        return "{}"
+def save_workshop_level(level: Level):
+    path = os.path.join(get_save_dir(workshop_levels=True), f"{level.name}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(level.to_dict(), f, indent=4)
 
 
-def deserialize_level_from_string(level_source) -> Level:
-    try:
-        if isinstance(level_source, requests.Response):
-            try:
-                wrapper = level_source.json()
-            except ValueError:
-                wrapper = json.loads(level_source.text)
+def save_workshop_machine(item):
+    base_dir = get_save_dir(workshop_machine=True)
+    name = getattr(item, "name", None)
+    if not name and isinstance(item, dict):
+        name = item.get("name", "Unnamed_Machine")
+    if not name:
+        name = "Unnamed_Machine"
 
-        elif isinstance(level_source, str):
-            wrapper = json.loads(level_source)
+    if hasattr(item, "serialize"):
+        data = item.serialize(name)
+    elif hasattr(item, "to_dict"):
+        data = item.to_dict()
+    elif isinstance(item, dict):
+        data = item
+    else:
+        print("save_workshop_machine: unsupported item type", type(item))
+        return None
+    os.makedirs(base_dir, exist_ok=True)
+    full_path = os.path.join(base_dir, f"{name}.json")
+    with open(full_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
+    return full_path
 
-        elif isinstance(level_source, dict):
-            wrapper = level_source
-        else:
-            raise TypeError(f"Unsupported type for level_source: {type(level_source)}")
-
-        if "levelData" in wrapper:
-            inner_data = wrapper["levelData"]
-
-            if isinstance(inner_data, str):
-                try:
-                    inner_data = json.loads(inner_data)
-                except Exception:
-                    pass
-            if isinstance(inner_data, str) and inner_data.startswith("{"):
-                try:
-                    inner_data = json.loads(inner_data)
-                except Exception:
-                    pass
-
-            if "data" in inner_data:
-                inner_data = inner_data["data"]
-
-            inner_data["level_type"] = inner_data.get("type", "Workshop")
-            return Level.from_dict(inner_data)
-
-    except Exception as e:
-        print(f"[deserialize_level_from_string] Failed to decode JSON: {e}")
-        return Level(name="Invalid Level", description="Failed to load", objective="N/A")
-
-def serialize_machine_to_string(machine_data: dict) -> str:
-    wrapper = {
-        "version": 1,
-        "game": "Turing Sandbox",
-        "source": "Python",
-        "data": machine_data
-    }
-
-    try:
-        return json.dumps(wrapper, ensure_ascii=False, separators=(",", ":"))
-    except Exception as e:
-        print(f"[serialize_machine_to_string] Failed to encode JSON: {e}")
-        return "{}"
-
-def deserialize_machine_from_string(machine_source) -> dict:
-    try:
-        if isinstance(machine_source, requests.Response):
-            wrapper = machine_source.json()
-        elif isinstance(machine_source, str):
-            wrapper = json.loads(machine_source)
-        elif isinstance(machine_source, dict):
-            wrapper = machine_source
-        else:
-            raise TypeError(f"Unsupported type: {type(machine_source)}")
-
-        if "machineData" in wrapper:
-            inner_data = wrapper["machineData"]
-            if isinstance(inner_data, str):
-                inner_data = json.loads(inner_data)
-            if "data" in inner_data:
-                return inner_data["data"]
-            return inner_data
-
-        return wrapper
-    except Exception as e:
-        print(f"[deserialize_machine_from_string] Failed to decode JSON: {e}")
-        return {}
-
-
-
-
-
-
+def delete_workshop_item(name, is_level=False):
+    if is_level:
+        path = os.path.join(get_save_dir(workshop_levels=True), f"{name}.json")
+    else:
+        path = os.path.join(get_save_dir(workshop_machine=True), f"{name}.json")
+    if os.path.exists(path):
+        os.remove(path)

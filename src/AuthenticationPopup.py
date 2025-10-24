@@ -1,14 +1,8 @@
 import pygame
-import requests
-import json
-import os
 import time
 from Button import Button, COLORS
 from FontManager import FontManager
-import auth_manager
-
-API_URL = "https://turingmachinesapi.onrender.com/players"
-VERIFY_SSL = False
+import request_helper
 
 
 class AuthenticationPopup:
@@ -28,13 +22,14 @@ class AuthenticationPopup:
         self.success_message = ""
         self.cursor_visible = True
         self.last_cursor_blink = time.time()
+        self.loading = False
 
         self.btn_login = Button("Login", (0.28, 0.63, 0.22, 0.07), self.font_button, self._login)
         self.btn_register = Button("Register", (0.52, 0.63, 0.22, 0.07), self.font_button, self._register)
         self.btn_close = Button("X", (0.69, 0.29, 0.05, 0.05), self.font_button, self._close)
 
         try:
-            token, user = auth_manager.load_session()
+            token, user = request_helper.load_session()
             if token and user:
                 print(f"Session verified for {user['username']}")
                 self.on_authenticated(user)
@@ -64,9 +59,8 @@ class AuthenticationPopup:
             else:
                 self.active_field = None
 
-        self.btn_login.handle_event(event)
-        self.btn_register.handle_event(event)
-        self.btn_close.handle_event(event)
+        for b in [self.btn_login, self.btn_register, self.btn_close]:
+            b.handle_event(event)
 
     def draw(self):
         w, h = self.screen.get_size()
@@ -90,19 +84,19 @@ class AuthenticationPopup:
         self._draw_label("Password", box_x + 50, box_y + 170)
         self._draw_input(self._password_rect(box), "*" * len(self.password), self.active_field == "password")
 
-        self.btn_login.update_rect((w, h))
-        self.btn_register.update_rect((w, h))
-        self.btn_close.update_rect((w, h))
-        self.btn_login.draw(self.screen)
-        self.btn_register.draw(self.screen)
-        self.btn_close.draw(self.screen)
+        for btn in [self.btn_login, self.btn_register, self.btn_close]:
+            btn.update_rect((w, h))
+            btn.draw(self.screen)
 
-        if self.error_message:
+        if self.loading:
+            load_text = self.font_label.render("Loading...", True, (200, 200, 200))
+            self.screen.blit(load_text, (box.centerx - load_text.get_width() // 2, box.bottom - 60))
+        elif self.error_message:
             err = self.font_label.render(self.error_message, True, (220, 90, 90))
-            self.screen.blit(err, (box.centerx - err.get_width() // 2, box.bottom  - box.top / 2))
+            self.screen.blit(err, (box.centerx - err.get_width() // 2, box.bottom - 60))
         elif self.success_message:
             succ = self.font_label.render(self.success_message, True, (100, 220, 120))
-            self.screen.blit(succ, (box.centerx - succ.get_width() // 2, box.bottom - 50))
+            self.screen.blit(succ, (box.centerx - succ.get_width() // 2, box.bottom - 60))
 
     def _username_rect(self, box=None):
         if box is None:
@@ -136,53 +130,46 @@ class AuthenticationPopup:
         if active and self.cursor_visible:
             cursor_x = rect.x + 10 + self.font_input.size(text)[0] + 2
             cursor_y = rect.y + 5
-            pygame.draw.line(self.screen, COLORS["accent"], (cursor_x, cursor_y), (cursor_x, cursor_y + rect.height - 10), 2)
+            pygame.draw.line(self.screen, COLORS["accent"],
+                             (cursor_x, cursor_y),
+                             (cursor_x, cursor_y + rect.height - 10), 2)
+
 
     def _login(self):
-        self._send_request(is_register=False)
+        self._authenticate(is_register=False)
 
     def _register(self):
-        self._send_request(is_register=True)
+        self._authenticate(is_register=True)
 
-    def _send_request(self, is_register=False):
+    def _authenticate(self, is_register: bool):
         self.error_message = ""
         self.success_message = ""
-
         if not self.username.strip() or not self.password.strip():
             self.error_message = "Please enter both username and password."
             return
 
+        self.loading = True
+        pygame.display.flip()
         try:
             if is_register:
-                r = requests.post(API_URL, json={"username": self.username, "password": self.password},
-                                  verify=VERIFY_SSL)
-                if r.status_code == 201:
-                    self.success_message = "Account created! You can log in now."
-                elif r.status_code == 409:
-                    self.error_message = "Username already exists."
+                print("Registering new user...")
+                data = request_helper.register_user(self.username, self.password)
+                if data:
+                    self.success_message = f"User '{self.username}' registered successfully!"
                 else:
-                    self.error_message = f"Registration failed ({r.status_code})."
+                    self.error_message = "Registration failed."
             else:
-                login_url = f"{API_URL}/login"
-                r = requests.post(login_url, json={"username": self.username, "password": self.password},
-                                  verify=VERIFY_SSL)
-
-                if r.status_code == 200:
-                    data = r.json()
-                    token = data.get("token")
-                    user = data.get("user", {})
-
-                    auth_manager.save_session(token, user)
-
+                print("Logging in...")
+                token, user = request_helper.login_user(self.username, self.password)
+                if token and user:
                     self.success_message = f"Welcome back, {user.get('username', self.username)}!"
                     self.on_authenticated(user)
-                elif r.status_code == 401:
-                    self.error_message = "Invalid username or password."
                 else:
-                    self.error_message = f"Login failed ({r.status_code})."
-
+                    self.error_message = "Invalid username or password."
         except Exception as e:
             self.error_message = f"Network error: {e}"
+        finally:
+            self.loading = False
 
     def _close(self):
         self.on_authenticated(None)
