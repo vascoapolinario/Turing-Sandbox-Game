@@ -39,6 +39,7 @@ class WorkshopMenu:
         self.active_tab = "All"
         self.page = 0
         self.input_active = False
+        self.user = request_helper.get_user()
 
         self.btn_back = Button("Back", (0.04, 0.03, 0.12, 0.06), self.font_body, self._close)
         self.btn_search = Button("Search", (0.73, 0.15, 0.15, 0.05), self.font_body, self._do_search)
@@ -152,8 +153,10 @@ class WorkshopMenu:
                   self.btn_tab_all, self.btn_tab_levels, self.btn_tab_machines]:
             b.handle_event(event)
 
-        for (card_rect, sub_btn, item, star_rects) in self._card_buttons_cache:
+        for (card_rect, sub_btn, item, star_rects, delete_btn) in self._card_buttons_cache:
             sub_btn.handle_event(event)
+            if delete_btn:
+                delete_btn.handle_event(event)
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for i, rect in enumerate(star_rects):
                     if rect.collidepoint(event.pos):
@@ -241,7 +244,6 @@ class WorkshopMenu:
             for i, item in enumerate(visible):
                 col = i % 2
                 row = i // 2
-
                 card_x = int(w * 0.10) + col * (card_w + pad_x)
                 card_y = start_y + row * (card_h + pad_y)
                 card_rect = pygame.Rect(card_x, card_y, card_w, card_h)
@@ -262,14 +264,36 @@ class WorkshopMenu:
                     lambda i=item: self._toggle_subscription(i),
                 )
 
+                can_delete = (
+                        self.user.get("role") == "Admin"
+                        or item.get("author") == self.user.get("username")
+                )
+
+                delete_btn = None
+                if can_delete:
+                    del_w, del_h = 100, 34
+                    del_x = card_rect.x + 15
+                    del_y = card_rect.bottom - del_h - 12
+                    delete_btn = Button(
+                        "Delete",
+                        (
+                            del_x / self.screen.get_width(),
+                            del_y / self.screen.get_height(),
+                            del_w / self.screen.get_width(),
+                            del_h / self.screen.get_height(),
+                        ),
+                        self.font_tiny,
+                        lambda i=item: self._delete_workshop_item(i),
+                    )
+
                 stars = self._star_rects(5)
-                self._card_buttons_cache.append((card_rect, sub_btn, item, stars))
+                self._card_buttons_cache.append((card_rect, sub_btn, item, stars, delete_btn))
             self._buttons_dirty = False
 
-        for card_rect, sub_btn, item, stars in self._card_buttons_cache:
-            self._draw_card(item, card_rect, sub_btn, stars)
+        for card_rect, sub_btn, item, stars, delete_btn in self._card_buttons_cache:
+            self._draw_card(item, card_rect, sub_btn, stars, delete_btn)
 
-    def _draw_card(self, item, card_rect, sub_btn, stars):
+    def _draw_card(self, item, card_rect, sub_btn, stars, delete_btn=None):
         pygame.draw.rect(self.screen, (40, 45, 70), card_rect, border_radius=12)
         pygame.draw.rect(self.screen, COLORS["accent"], card_rect, 1, border_radius=12)
 
@@ -305,7 +329,24 @@ class WorkshopMenu:
         sub_btn.update_rect(self.screen.get_size())
         sub_btn.draw(self.screen)
 
+        if delete_btn:
+            delete_btn.update_rect(self.screen.get_size())
+            pygame.draw.rect(self.screen, (180, 40, 40), delete_btn.rect, border_radius=10)
+            delete_btn.draw(self.screen)
+
 
     def _star_rects(self, n):
         size = 18
         return [pygame.Rect(0, 0, size, size) for _ in range(n)]
+
+    def _delete_workshop_item(self, item):
+        confirm = True
+        if not confirm:
+            return
+
+        success = request_helper.delete_workshop_item(item["id"])
+        if success:
+            print(f"Deleted workshop item {item['name']}")
+            self.items = [i for i in self.items if i["id"] != item["id"]]
+            self._filter_items()
+            self._buttons_dirty = True

@@ -42,6 +42,7 @@ def load_session():
             token = data.get("token")
             user = data.get("user", {})
             if token is not None and user is not None:
+
                 return token, user
         headers = {"Authorization": f"Bearer {token}"}
         debug_requests("load_session")
@@ -328,5 +329,38 @@ def debug_requests(request_name):
     print("[Request Debug] Called:", request_name)
 
 
+def is_authenticated():
+    try:
+        with open(SESSION_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            token = data.get("token")
+            user = data.get("user", {})
+            if token is not None and user is not None:
+                return True
+    except Exception:
+        return False
 
+def get_user():
+    try:
+        with open(SESSION_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            user = data.get("user", {})
+            return user
+    except Exception:
+        return None
 
+def delete_workshop_item(id):
+    debug_requests("delete_workshop_item")
+    headers = get_auth_headers()
+    try:
+        r = requests.delete(f"{WORKSHOP_URL}/{id}", headers=headers, verify=VERIFY_SSL, timeout=5)
+        if r.status_code == 200:
+            print("Workshop item deleted successfully.")
+            return True
+        elif r.status_code == 404:
+            print("Workshop item not found.")
+        else:
+            print(f"Failed to delete workshop item (status {r.status_code})")
+    except Exception as e:
+        print("Failed to delete workshop item:", e)
+    return False

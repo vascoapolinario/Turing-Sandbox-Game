@@ -30,12 +30,7 @@ class LevelSelectMenu:
         self.level_buttons = []
         self.type_buttons = []
         self.auth_popup = None
-
-        token, user = request_helper.load_session()
-        if token is not None and user is not None:
-            self.current_user = user
-        else:
-            self.current_user = None
+        self.current_user = None
 
 
 
@@ -406,6 +401,11 @@ class LevelSelectMenu:
         self._build_level_buttons()
 
     def _open_workshop_menu(self):
+        token, user = request_helper.load_session()
+        if token is not None and user is not None:
+            request_helper.verify_authentication()
+            if request_helper.is_authenticated():
+                self.current_user = user
         if self.current_user is None:
             self.auth_popup = AuthenticationPopup(self.screen, self._on_authenticated)
             return
