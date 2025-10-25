@@ -18,19 +18,22 @@ from FontManager import FontManager
 
 
 class Environment:
-    def __init__(self, screen, level=None):
+    def __init__(self, screen, level=None, sandbox_alphabet=None):
+        self.sandbox_alphabet = sandbox_alphabet or ["0", "1", "_"]
         self.level = level or Level(
             name="Sandbox",
             type="sandbox",
             description="Free build mode with no objective.",
             detailedDescription="Have fun!",
-            alphabet=['0', '1', '_'],
+            alphabet=self.sandbox_alphabet,
             objective="Experiment freely.",
             solution={},
             mode="accept",
             double_tape=True
 
         )
+        if self.level.type == "sandbox":
+            self.level.alphabet = self.sandbox_alphabet
         self.alphabet = self.level.alphabet
         self.screen = screen
         if self.level.double_tape:

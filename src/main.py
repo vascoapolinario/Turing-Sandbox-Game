@@ -7,6 +7,7 @@ import pypresence
 from MainMenu import MainMenu
 from Environment import Environment
 from LevelSelectMenu import LevelSelectMenu
+from SettingsMenu import SettingsMenu
 
 pygame.init()
 import ctypes
@@ -51,9 +52,11 @@ def main():
     menu = MainMenu(screen)
     env = None
     level_menu = None
+    settings_menu = None
     state = "main_menu"
     previous_state = None
     discord_available = True
+    sandbox_alphabet = ['0', '1', '_']
 
     running = True
     while running:
@@ -71,6 +74,17 @@ def main():
                 menu.handle_event(event)
             elif state == "level_select":
                 level_menu.handle_event(event)
+            elif state == "settings":
+                settings_menu.update(dt)
+                settings_menu.draw()
+
+                if event.type == pygame.QUIT:
+                    running = False
+                settings_menu.handle_event(event)
+
+                if menu.pressed == "":
+                    sandbox_alphabet = settings_menu.sandbox_alphabet
+                    state = "main_menu"
             else:
                 env.handle_event(event)
 
@@ -79,12 +93,17 @@ def main():
             menu.draw()
 
             if menu.pressed == "sandbox":
-                env = Environment(screen)
+                env = Environment(screen, sandbox_alphabet=sandbox_alphabet)
                 state = "environment"
 
             elif menu.pressed == "levels":
                 level_menu = LevelSelectMenu(screen)
                 state = "level_select"
+
+
+            elif menu.pressed == "settings":
+                settings_menu = SettingsMenu(screen, on_close=lambda: setattr(menu, "pressed", ""))
+                state = "settings"
 
         elif state == "level_select":
             level_menu.update()
@@ -104,10 +123,12 @@ def main():
                 menu = MainMenu(screen)
                 env = None
                 state = "main_menu"
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
             elif env.levelselection:
                 level_menu = LevelSelectMenu(screen)
                 env = None
                 state = "level_select"
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
         if discord_available:
             try:
                 if state != previous_state and rpc:
@@ -117,6 +138,8 @@ def main():
                         rpc.update(state="Selecting level", details="Browsing levels", large_image="levels")
                     elif state == "environment":
                         rpc.update(state=f"Playing level: {env.level.name}", details="Building a Turing Machine!", large_image="logo")
+                    elif state == "settings":
+                        rpc.update(state="In settings menu", details="Adjusting settings", large_image="settings")
                     previous_state = state
             except Exception as ex:
                 print("Discord RPC error:", ex)
