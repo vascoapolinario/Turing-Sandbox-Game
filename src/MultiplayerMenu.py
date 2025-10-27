@@ -97,6 +97,11 @@ class MultiplayerMenu:
     def draw(self):
         self.screen.fill((20, 22, 35))
         w, h = self.screen.get_size()
+        
+        for x in range(0, w, 40):
+            pygame.draw.line(self.screen, (30, 32, 50), (x, 0), (x, h))
+        for y in range(0, h, 40):
+            pygame.draw.line(self.screen, (30, 32, 50), (0, y), (w, y))
 
         self.font_title = FontManager.get(int(64 * (h / 1080)), bold=True)
         self.font_small = FontManager.get(int(24 * (h / 1080)))
@@ -356,6 +361,7 @@ class MultiplayerMenu:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
                     if request_helper.join_lobby(self.password_target_code, self.password_input):
+                        self.refresh_lobbies()
                         self.current_lobby = next(
                             (l for l in self.lobbies if l.get("code") == self.password_target_code), None)
                         self.btn_leave = Button("Leave Lobby", (0.15, 0.85, 0.25, 0.07),
