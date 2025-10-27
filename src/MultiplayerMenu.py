@@ -452,8 +452,10 @@ class MultiplayerMenu:
     def _on_player_left(self, data):
         print(f"[SignalR] Player left: {data}")
         self.refresh_lobbies()
-
-        self.refresh_lobbies()
+        if not any(l.get("code") == self.current_lobby.get("code") for l in self.lobbies):
+            self.current_lobby = None
+            request_helper.leave_signalr_group(data.get("lobbyCode"))
+            return
 
         code = data.get("lobbyCode")
         if self.current_lobby and self.current_lobby.get("code") == code:
@@ -489,10 +491,12 @@ class MultiplayerMenu:
         print(f"Attempting to join lobby {code}")
         if request_helper.join_lobby(code):
             self._show_message("Joined the lobby successfully!")
-            self.current_lobby = lobby
             self.btn_leave = Button("Leave Lobby", (0.15, 0.85, 0.25, 0.07),
                                     self.font_medium, self._leave_lobby)
+            self.refresh_lobbies()
             request_helper.join_signalr_group(code)
+            lobby = next((l for l in self.lobbies if l.get("code") == code), None)
+            self.current_lobby = lobby
 
     def _leave_lobby(self):
         if not self.current_lobby:
@@ -513,9 +517,9 @@ class MultiplayerMenu:
 
         lobby_data = request_helper.create_lobby(self.selected_level["id"], password)
         if lobby_data:
+            self.refresh_lobbies()
             self.current_lobby = lobby_data
             request_helper.join_signalr_group(lobby_data["code"])
-            self.refresh_lobbies()
             self.btn_leave = Button("Leave Lobby", (0.15, 0.85, 0.25, 0.07),
                                     self.font_medium, self._leave_lobby)
         else:
