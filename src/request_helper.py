@@ -468,6 +468,25 @@ def leave_lobby(code):
         print("Leave lobby failed:", e)
     return False
 
+def join_signalr_group(code: str):
+    global hub_connection
+    if hub_connection:
+        try:
+            hub_connection.send("JoinLobbyGroup", [code])
+            print(f"[SignalR] Joined group {code}")
+        except Exception as e:
+            print(f"[SignalR] Failed to join group {code}: {e}")
+
+
+def leave_signalr_group(code: str):
+    global hub_connection
+    if hub_connection:
+        try:
+            hub_connection.send("LeaveLobbyGroup", [code])
+            print(f"[SignalR] Left group {code}")
+        except Exception as e:
+            print(f"[SignalR] Failed to leave group {code}: {e}")
+
 def disconnect_signalr():
     global hub_connection
     if hub_connection:

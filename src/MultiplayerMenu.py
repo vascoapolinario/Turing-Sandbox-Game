@@ -476,6 +476,9 @@ class MultiplayerMenu:
         if request_helper.join_lobby(code):
             self._show_message("Joined the lobby successfully!")
             self.current_lobby = lobby
+            self.btn_leave = Button("Leave Lobby", (0.15, 0.85, 0.25, 0.07),
+                                    self.font_medium, self._leave_lobby)
+            request_helper.join_signalr_group(code)
 
     def _leave_lobby(self):
         if not self.current_lobby:
@@ -484,6 +487,7 @@ class MultiplayerMenu:
         if request_helper.leave_lobby(code):
             self._show_message("Left the lobby successfully!")
             self.current_lobby = None
+            request_helper.leave_signalr_group(code)
             self.refresh_lobbies()
 
     def _host(self):
@@ -496,6 +500,7 @@ class MultiplayerMenu:
         lobby_data = request_helper.create_lobby(self.selected_level["id"], password)
         if lobby_data:
             self.current_lobby = lobby_data
+            request_helper.join_signalr_group(lobby_data["code"])
             self.refresh_lobbies()
             self.btn_leave = Button("Leave Lobby", (0.15, 0.85, 0.25, 0.07),
                                     self.font_medium, self._leave_lobby)
