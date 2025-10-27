@@ -5,6 +5,8 @@ from Button import Button, COLORS
 from Grid import Grid
 from Node import Node
 from FontManager import FontManager
+import request_helper
+from AuthenticationPopup import AuthenticationPopup
 
 
 class MainMenu:
@@ -14,12 +16,15 @@ class MainMenu:
         self.button_font = pygame.font.SysFont("futura", 32)
         self.title_text = self.title_font.render("Turing Machine Sandbox", True, COLORS["accent"])
         self.pressed = ""
+        self.current_user = None
+        self.AuthenticationPopup = None
 
         self.buttons = [
-            Button("Levels", (0.4, 0.5, 0.2, 0.08), self.button_font, self.open_levels),
-            Button("Sandbox", (0.4, 0.62, 0.2, 0.08), self.button_font, self.start_game),
+            Button("Levels", (0.4, 0.44, 0.2, 0.08), self.button_font, self.open_levels),
+            Button("Sandbox", (0.4, 0.54, 0.2, 0.08), self.button_font, self.start_game),
+            Button("Multiplayer", (0.4, 0.64, 0.2, 0.08), self.button_font, self.open_multiplayer),
             Button("Settings", (0.4, 0.74, 0.2, 0.08), self.button_font, self.open_settings),
-            Button("Quit", (0.4, 0.86, 0.2, 0.08), self.button_font, self.quit_game),
+            Button("Quit", (0.4, 0.84, 0.2, 0.08), self.button_font, self.quit_game),
         ]
 
         self.title_y_offset = 0
@@ -146,7 +151,13 @@ class MainMenu:
         for button in self.buttons:
             button.draw(self.screen)
 
+        if self.AuthenticationPopup:
+            self.AuthenticationPopup.draw()
+
     def handle_event(self, event):
+        if self.AuthenticationPopup:
+            self.AuthenticationPopup.handle_event(event)
+            return
         for button in self.buttons:
             button.handle_event(event)
 
@@ -158,6 +169,19 @@ class MainMenu:
 
     def open_settings(self):
         self.pressed = "settings"
+
+    def open_multiplayer(self):
+        if self.current_user is None:
+            if request_helper.verify_authentication():
+                self.current_user = request_helper.get_user()
+            else:
+                self.AuthenticationPopup = AuthenticationPopup(self.screen, on_authenticated=self._on_auth)
+        else:
+            self.pressed = "multiplayer"
+
+    def _on_auth(self, user):
+        self.current_user = user
+        self.AuthenticationPopup = None
 
     def quit_game(self):
         pygame.quit()

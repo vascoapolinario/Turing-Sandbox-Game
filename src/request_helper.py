@@ -13,6 +13,7 @@ WORKSHOP_URL = "https://turingmachinesapi.onrender.com/workshop"
 AUTH_URL = "https://turingmachinesapi.onrender.com/auth"
 AUTH_POP_UP_URL = "https://turingmachinesapi.onrender.com/players"
 AUTH_VERIFY_URL = "https://turingmachinesapi.onrender.com/players/verify"
+LOBBY_URL = "https://turingmachinesapi.onrender.com/lobbies"
 VERIFY_SSL = True
 
 # Localhost testing links:
@@ -21,6 +22,7 @@ VERIFY_SSL = True
 #AUTH_URL = "https://localhost:7054/auth"
 #AUTH_POP_UP_URL = "https://localhost:7054/players"
 #AUTH_VERIFY_URL = "https://localhost:7054/players/verify"
+#LOBBY_URL = "https://localhost:7054/lobbies"
 #VERIFY_SSL = False
 
 
@@ -364,3 +366,134 @@ def delete_workshop_item(id):
     except Exception as e:
         print("Failed to delete workshop item:", e)
     return False
+
+def get_lobbies():
+    debug_requests("get_lobbies")
+    headers = get_auth_headers()
+    try:
+        r = requests.get(LOBBY_URL, headers=headers, verify=VERIFY_SSL, timeout=5)
+        if r.status_code == 200:
+            return r.json()
+        else:
+            print(f"Failed to fetch lobbies (status {r.status_code})")
+    except Exception as e:
+        print("Failed to fetch lobbies:", e)
+    return []
+
+def create_lobby(selected_level_id: int, password: str = None):
+    debug_requests("create_lobby")
+    headers = get_auth_headers()
+    params = {"selectedLevelId": selected_level_id}
+    if password:
+        params["password"] = password
+    try:
+        r = requests.post(LOBBY_URL, headers=headers, params=params, verify=VERIFY_SSL, timeout=5)
+        if r.status_code in (200, 201):
+            print("Lobby created successfully.")
+            return r.json()
+        else:
+            print(f"Failed to create lobby (status {r.status_code}): {r.text}")
+    except Exception as e:
+        print("Create lobby failed:", e)
+    return None
+
+def join_lobby(code, password=None):
+    debug_requests("join_lobby")
+    headers = get_auth_headers()
+    params = {"password": password} if password else {}
+    try:
+        r = requests.post(f"{LOBBY_URL}/{code}/join", headers=headers, params=params, verify=VERIFY_SSL, timeout=5)
+        if r.status_code == 200:
+            print(f"Joined lobby {code} successfully.")
+            return True
+        else:
+            print(f"Failed to join lobby {code}: {r.status_code} {r.text}")
+    except Exception as e:
+        print("Join lobby failed:", e)
+    return False
+
+from signalrcore.hub_connection_builder import HubConnectionBuilder
+
+hub_connection = None
+
+
+def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left=None, on_lobby_deleted=None):
+    global hub_connection
+
+    HUB_URL = LOBBY_URL.replace("/lobbies", "/hubs/lobby")
+
+    try:
+        headers = get_auth_headers()
+        access_token = headers.get("Authorization", "").replace("Bearer ", "")
+        query_str = f"?access_token={access_token}" if access_token else ""
+
+        hub_connection = (
+            HubConnectionBuilder()
+            .with_url(f"{HUB_URL}{query_str}", options={"verify_ssl": VERIFY_SSL})
+            .with_automatic_reconnect({
+                "type": "raw",
+                "keep_alive_interval": 10,
+                "reconnect_interval": 5
+            })
+            .build()
+        )
+
+        if on_lobby_created:
+            hub_connection.on("LobbyCreated", lambda args: on_lobby_created(args[0]))
+        if on_player_joined:
+            hub_connection.on("PlayerJoined", lambda args: on_player_joined(args[0]))
+        if on_player_left:
+            hub_connection.on("PlayerLeft", lambda args: on_player_left(args[0]))
+        if on_lobby_deleted:
+            hub_connection.on("LobbyDeleted", lambda args: on_lobby_deleted(args[0]))
+
+        hub_connection.start()
+        print("Connected to LobbyHub SignalR")
+
+    except Exception as e:
+        print("Failed to connect to SignalR hub:", e)
+
+
+def leave_lobby(code):
+    debug_requests("leave_lobby")
+    headers = get_auth_headers()
+    try:
+        r = requests.post(f"{LOBBY_URL}/{code}/leave", headers=headers, verify=VERIFY_SSL, timeout=5)
+        if r.status_code == 200:
+            print(f"Left lobby {code}")
+            return True
+        else:
+            print(f"Failed to leave lobby {code}: {r.status_code} {r.text}")
+    except Exception as e:
+        print("Leave lobby failed:", e)
+    return False
+
+def join_signalr_group(code: str):
+    global hub_connection
+    if hub_connection:
+        try:
+            hub_connection.send("JoinLobbyGroup", [code])
+            print(f"[SignalR] Joined group {code}")
+        except Exception as e:
+            print(f"[SignalR] Failed to join group {code}: {e}")
+
+
+def leave_signalr_group(code: str):
+    global hub_connection
+    if hub_connection:
+        try:
+            hub_connection.send("LeaveLobbyGroup", [code])
+            print(f"[SignalR] Left group {code}")
+        except Exception as e:
+            print(f"[SignalR] Failed to leave group {code}: {e}")
+
+def disconnect_signalr():
+    global hub_connection
+    if hub_connection:
+        try:
+            hub_connection.stop()
+            print("Disconnected from LobbyHub")
+        except Exception as e:
+            print("Error disconnecting SignalR:", e)
+        finally:
+            hub_connection = None
