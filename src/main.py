@@ -8,6 +8,8 @@ from MainMenu import MainMenu
 from Environment import Environment
 from LevelSelectMenu import LevelSelectMenu
 from SettingsMenu import SettingsMenu
+from MultiplayerMenu import MultiplayerMenu
+import request_helper
 
 pygame.init()
 import ctypes
@@ -85,6 +87,14 @@ def main():
                 if menu.pressed == "":
                     sandbox_alphabet = settings_menu.sandbox_alphabet
                     state = "main_menu"
+
+            elif state == "multiplayer":
+                multiplayer_menu.update(dt)
+                multiplayer_menu.draw()
+                multiplayer_menu.handle_event(event)
+                if menu.pressed == "":
+                    state = "main_menu"
+                    request_helper.disconnect_signalr()
             else:
                 env.handle_event(event)
 
@@ -104,6 +114,10 @@ def main():
             elif menu.pressed == "settings":
                 settings_menu = SettingsMenu(screen, on_close=lambda: setattr(menu, "pressed", ""))
                 state = "settings"
+
+            elif menu.pressed == "multiplayer":
+                multiplayer_menu = MultiplayerMenu(screen, on_close=lambda: setattr(menu, "pressed", ""))
+                state = "multiplayer"
 
         elif state == "level_select":
             level_menu.update()
@@ -140,6 +154,8 @@ def main():
                         rpc.update(state=f"Playing level: {env.level.name}", details="Building a Turing Machine!", large_image="logo")
                     elif state == "settings":
                         rpc.update(state="In settings menu", details="Adjusting settings", large_image="settings")
+                    elif state == "multiplayer":
+                        rpc.update(state="In multiplayer menu", details="Solving Levels with others!", large_image="multiplayer")
                     previous_state = state
             except Exception as ex:
                 print("Discord RPC error:", ex)
