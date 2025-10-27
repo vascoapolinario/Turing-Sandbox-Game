@@ -443,9 +443,23 @@ class MultiplayerMenu:
         print(f"[SignalR] Player joined: {data}")
         self.refresh_lobbies()
 
+        code = data.get("lobbyCode")
+        if self.current_lobby and self.current_lobby.get("code") == code:
+            updated = next((l for l in self.lobbies if l.get("code") == code), None)
+            if updated:
+                self.current_lobby = updated
+
     def _on_player_left(self, data):
         print(f"[SignalR] Player left: {data}")
         self.refresh_lobbies()
+
+        self.refresh_lobbies()
+
+        code = data.get("lobbyCode")
+        if self.current_lobby and self.current_lobby.get("code") == code:
+            updated = next((l for l in self.lobbies if l.get("code") == code), None)
+            if updated:
+                self.current_lobby = updated
 
     def _on_lobby_deleted(self, data):
         print(f"[SignalR] Lobby deleted: {data}")
