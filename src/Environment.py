@@ -598,8 +598,24 @@ class Environment:
 
     def _propose_delete(self, target):
         if self.multiplayer and not self.is_host:
-            data = target.to_dict() if hasattr(target, "to_dict") else None
-            request_helper.propose_delete(self.lobby_code, data)
+            if hasattr(target, "start") and hasattr(target, "end"):
+                target_data = {
+                    "type": "connection",
+                    "start": {"x": target.start.pos.x, "y": target.start.pos.y},
+                    "end": {"x": target.end.pos.x, "y": target.end.pos.y},
+                }
+            elif hasattr(target, "pos"):
+                target_data = {
+                    "type": "node",
+                    "x": target.pos.x,
+                    "y": target.pos.y,
+                }
+            else:
+                print("[Delete] Unknown target, skipping proposal")
+                return
+
+            print(f"[Delete] Proposing → {target_data}")
+            request_helper.propose_delete(self.lobby_code, target_data)
 
     def serialize_state(self):
         return {
@@ -654,15 +670,24 @@ class Environment:
             print(f"[Host] Invalid connection proposal ({start_id}->{end_id})")
             return
 
+        def normalize(value):
+            if isinstance(value, list) and len(value) == 1 and isinstance(value[0], list):
+                return value[0]
+            if isinstance(value, list):
+                return [str(v) for v in value]
+            if value is None:
+                return []
+            return [str(value)]
+
+        read = normalize(data.get("read"))
+        write = normalize(data.get("write"))
+        move = normalize(data.get("move"))
+        read2 = normalize(data.get("read2"))
+        write2 = normalize(data.get("write2"))
+        move2 = normalize(data.get("move2"))
+
         conn = Connection(start, end)
-        conn.update_logic(
-            data.get("read", []),
-            data.get("write", []),
-            data.get("move", []),
-            data.get("read2"),
-            data.get("write2"),
-            data.get("move2")
-        )
+        conn.update_logic(read, write, move, read2, write2, move2)
 
         self.connections.append(conn)
         self._sync_machine()
@@ -672,16 +697,25 @@ class Environment:
     def apply_delete_proposal(self, target_data):
         target_type = target_data.get("type")
         if target_type == "node":
-            node_id = target_data.get("id")
-            node = next((n for n in self.nodes if n.id == node_id), None)
+            x = target_data.get("x")
+            y = target_data.get("y")
+            if x is None or y is None:
+                return
+            pos = pygame.Vector2(x, y)
+            node = self._get_node_at(pos, world_space=True)
             if node:
                 self._delete_node(node)
+                print(f"[Host] Deleted node near ({x}, {y})")
+
         elif target_type == "connection":
-            start_id = target_data.get("startId")
-            end_id = target_data.get("endId")
-            conn = next((c for c in self.connections if c.start.id == start_id and c.end.id == end_id), None)
-            if conn:
-                self.connections.remove(conn)
+            start_pos = pygame.Vector2(target_data["start"]["x"], target_data["start"]["y"])
+            end_pos = pygame.Vector2(target_data["end"]["x"], target_data["end"]["y"])
+            for conn in list(self.connections):
+                if (conn.start.pos - start_pos).length() < 1e-3 and (conn.end.pos - end_pos).length() < 1e-3:
+                    self.connections.remove(conn)
+                    print(f"[Host] Deleted connection between ({start_pos}) and ({end_pos})")
+                    break
+
         self._sync_machine()
         self._broadcast_state()
-        print(f"[Host] Applied delete proposal and broadcasted")
+        print("[Host] Applied delete proposal and broadcasted")
