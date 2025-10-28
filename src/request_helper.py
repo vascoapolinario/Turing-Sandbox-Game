@@ -579,7 +579,7 @@ def propose_node(lobby_code, pos, is_end):
 def propose_connection(data):
     if hub_connection:
         hub_connection.send("ProposeConnection", [data])
-        print(f"[SignalR] Sent connection proposal → {data.keys()}")
+        print(f"[SignalR] Sent connection proposal → {data}")
 
 def propose_delete(lobby_code, target_data):
     if hub_connection:

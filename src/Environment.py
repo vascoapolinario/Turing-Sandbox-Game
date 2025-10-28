@@ -583,18 +583,29 @@ class Environment:
 
     def _propose_connection(self, start_id, end_id, read, write, move, read2=None, write2=None, move2=None):
         if self.multiplayer and not self.is_host:
-            data = {
+            def clean(value):
+                if value is None:
+                    return []
+                if isinstance(value, (str, int)):
+                    return [str(value)]
+                if isinstance(value, (list, tuple, set)):
+                    return [str(v) for v in value if v is not None]
+                return [str(value)]
+
+            payload = {
                 "lobbyCode": self.lobby_code,
-                "startId": start_id,
-                "endId": end_id,
-                "read": read,
-                "write": write,
-                "move": move,
-                "read2": read2,
-                "write2": write2,
-                "move2": move2
+                "startId": int(start_id),
+                "endId": int(end_id),
+                "read": clean(read),
+                "write": clean(write),
+                "move": clean(move),
+                "read2": clean(read2),
+                "write2": clean(write2),
+                "move2": clean(move2),
             }
-            request_helper.propose_connection(data)
+
+            print(f"[SignalR] Sending connection proposal → {payload}")
+            request_helper.propose_connection(payload)
 
     def _propose_delete(self, target):
         if self.multiplayer and not self.is_host:
@@ -671,10 +682,19 @@ class Environment:
             return
 
         def normalize(value):
-            if isinstance(value, list) and len(value) == 1 and isinstance(value[0], list):
-                return value[0]
+            print(value)
+            if isinstance(value, dict):
+                if "Values" in value and isinstance(value["Values"], list):
+                    return [str(v) for v in value["Values"]]
+                if "value" in value:
+                    return [str(value["value"])]
+                return [str(v) for v in value.values() if isinstance(v, (str, int, float))]
+
             if isinstance(value, list):
+                if len(value) == 1 and isinstance(value[0], list):
+                    value = value[0]
                 return [str(v) for v in value]
+
             if value is None:
                 return []
             return [str(value)]
