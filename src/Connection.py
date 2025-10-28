@@ -168,3 +168,34 @@ class Connection:
             if (p - click_world).length() <= tolerance / grid.zoom:
                 return True
         return False
+
+    @classmethod
+    def from_dict(cls, conn_data, nodes):
+        start_node = next((n for n in nodes if n.id == conn_data["start_id"]), None)
+        end_node = next((n for n in nodes if n.id == conn_data["end_id"]), None)
+        if not start_node or not end_node:
+            return None
+
+        connection = cls(
+            start_node=start_node,
+            end_node=end_node,
+            read=conn_data.get("read", []),
+            write=conn_data.get("write"),
+            move=conn_data.get("move"),
+            read2=conn_data.get("read2", []),
+            write2=conn_data.get("write2"),
+            move2=conn_data.get("move2")
+        )
+        return connection
+
+    def to_dict(self):
+        return {
+            "start_id": self.start.id,
+            "end_id": self.end.id,
+            "read": self.read,
+            "write": self.write,
+            "move": self.move,
+            "read2": self.read2,
+            "write2": self.write2,
+            "move2": self.move2
+        }

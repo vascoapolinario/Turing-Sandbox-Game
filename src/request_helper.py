@@ -437,7 +437,7 @@ hub_connection = None
 
 
 def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left=None, on_lobby_deleted=None,
-                    on_player_kicked=None):
+                    on_player_kicked=None, on_lobby_started=None, on_environment_synced=None):
     global hub_connection
 
     HUB_URL = LOBBY_URL.replace("/lobbies", "/hubs/lobby")
@@ -468,6 +468,10 @@ def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left
             hub_connection.on("LobbyDeleted", lambda args: on_lobby_deleted(args[0]))
         if on_player_kicked:
             hub_connection.on("PlayerKicked", lambda args: on_player_kicked(args[0]))
+        if on_lobby_started:
+            hub_connection.on("LobbyStarted", lambda args: on_lobby_started(args[0]))
+        if on_environment_synced:
+            hub_connection.on("EnvironmentSynced", lambda args: on_environment_synced(args[0]))
 
         hub_connection.start()
         print("Connected to LobbyHub SignalR")
@@ -535,3 +539,35 @@ def disconnect_signalr():
             print("Error disconnecting SignalR:", e)
         finally:
             hub_connection = None
+
+def start_lobby(code):
+    try:
+        headers = get_auth_headers()
+        resp = requests.post(f"{LOBBY_URL}/{code}/start", headers=headers, verify=VERIFY_SSL)
+        print("Start lobby response:", resp.status_code, resp.text)
+        if resp.status_code != 200:
+            return False
+        return True
+    except Exception as e:
+        print(f"Error starting lobby: {e}")
+        return False
+
+
+def send_environment_state(lobby_code, state):
+    if hub_connection:
+        payload = {"lobbyCode": lobby_code, "state": state}
+        print(f"[SignalR] Sending environment state → {payload.keys()}")
+        hub_connection.send("SyncEnvironment", [payload])
+        print("[SignalR] Sent environment state")
+
+def propose_node(lobby_code, pos, is_end):
+    if hub_connection:
+        hub_connection.send("ProposeNode", [{"lobbyCode": lobby_code, "pos": pos, "isEnd": is_end}])
+
+def propose_connection(data):
+    if hub_connection:
+        hub_connection.send("ProposeConnection", [data])
+
+def propose_delete(lobby_code, target):
+    if hub_connection:
+        hub_connection.send("ProposeDelete", [{"lobbyCode": lobby_code, "target": target}])

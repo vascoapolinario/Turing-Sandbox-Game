@@ -3,6 +3,7 @@ from Button import Button, COLORS
 from FontManager import FontManager
 import request_helper
 from datetime import datetime, timezone
+from Environment import Environment
 
 
 def time_since_utc(utc_str):
@@ -55,7 +56,6 @@ def time_since_utc(utc_str):
             return f"{seconds // 86400}d ago"
 
     except Exception as e:
-        print(f"⚠️ Failed to parse UTC time: {utc_str} ({e})")
         return "?"
 
 class MultiplayerMenu:
@@ -81,7 +81,9 @@ class MultiplayerMenu:
             on_player_joined=self._on_player_joined,
             on_player_left=self._on_player_left,
             on_lobby_deleted=self._on_lobby_deleted,
-            on_player_kicked=self._on_player_kicked
+            on_player_kicked=self._on_player_kicked,
+            on_lobby_started=self.on_lobby_started,
+            on_environment_synced=self.on_environment_synced,
         )
         self.join_buttons = []
         self.current_lobby = None
@@ -107,6 +109,8 @@ class MultiplayerMenu:
         self.btn_level_ok = Button("OK", (0.25, 0.73, 0.15, 0.07),
                                    self.font_small, self._confirm_level_popup)
         self.selected_temp_level = None
+        self.selected_temp_level_id = None
+        self.selected_level_id = None
         self.message_text = ""
         self.message_time = 0
         self.message_duration = 3000
@@ -116,6 +120,9 @@ class MultiplayerMenu:
         self.code_search_focused = False
         self.code_search_timer = 0
         self.code_cursor_visible = True
+
+        self.environment = None
+        self.in_environment = False
 
     def refresh_lobbies(self):
         self.lobbies = request_helper.get_lobbies() or []
@@ -157,9 +164,13 @@ class MultiplayerMenu:
             self.kick_buttons.append(btn)
 
     def update(self, dt):
-        pass
+        if self.in_environment and self.environment:
+            self.environment.update(dt)
 
     def draw(self):
+        if self.in_environment and self.environment:
+            self.environment.draw()
+            return
         self.screen.fill((20, 22, 35))
         w, h = self.screen.get_size()
         
@@ -316,6 +327,18 @@ class MultiplayerMenu:
             name_surf = self.font_small.render(f"{tag}{name}", True, COLORS["text"])
             self.screen.blit(name_surf, (players_rect.x + 25, text_y))
 
+        host_name = lobby.get("hostPlayer", "")
+        current_user = request_helper.get_username()
+        has_started = lobby.get("hasStarted", False)
+
+        if current_user == host_name and not has_started:
+            if not hasattr(self, "btn_start"):
+                self.btn_start = Button("Start Game", (0.15, 0.75, 0.25, 0.07),
+                                        self.font_medium, self._start_lobby)
+            self.btn_start.draw(self.screen)
+        elif hasattr(self, "btn_start"):
+            del self.btn_start
+
         for btn in self.kick_buttons:
             btn.draw(self.screen)
 
@@ -462,7 +485,6 @@ class MultiplayerMenu:
             return
 
         code = self.current_lobby.get("code")
-        print(f"Kicking player '{player_name}' from lobby {code}")
         success = request_helper.kick_player(code, player_name)
 
         if success:
@@ -473,6 +495,9 @@ class MultiplayerMenu:
 
 
     def handle_event(self, event):
+        if self.in_environment and self.environment:
+            self.environment.handle_event(event)
+            return
         if event.type == pygame.MOUSEWHEEL and not self.show_level_popup:
             if event.y < 0 and self.lobby_scroll < max(0, len(self.lobbies) - 8):
                 self.lobby_scroll += 1
@@ -518,6 +543,7 @@ class MultiplayerMenu:
                                        box.width - 40, item_height)
                     if rect.collidepoint(mx, my):
                         self.selected_temp_level = lvl
+                        self.selected_temp_level_id = lvl["id"]
                         break
 
                 self.btn_level_cancel.handle_event(event)
@@ -585,13 +611,13 @@ class MultiplayerMenu:
                 self._close()
         if self.current_lobby and hasattr(self, "btn_leave"):
             self.btn_leave.handle_event(event)
+        if hasattr(self, "btn_start"):
+            self.btn_start.handle_event(event)
 
     def _on_lobby_created(self, data):
-        print(f"[SignalR] Lobby created: {data}")
         self.refresh_lobbies()
 
     def _on_player_joined(self, data):
-        print(f"[SignalR] Player joined: {data}")
         self.refresh_lobbies()
 
         code = data.get("lobbyCode")
@@ -602,7 +628,6 @@ class MultiplayerMenu:
                 self._build_kick_buttons()
 
     def _on_player_left(self, data):
-        print(f"[SignalR] Player left: {data}")
         self.refresh_lobbies()
         if not any(l.get("code") == self.current_lobby.get("code") for l in self.lobbies):
             self.current_lobby = None
@@ -617,22 +642,29 @@ class MultiplayerMenu:
                 self._build_kick_buttons()
 
     def _on_player_kicked(self, data):
-        print(f"[SignalR] Player kicked: {data}")
         if not self.current_lobby:
             return
 
         code = data.get("lobbyCode")
         kicked_name = data.get("kickedPlayerName")
 
-        if self.current_lobby.get("code") == code:
-            if request_helper.get_username() == kicked_name:
+        if request_helper.get_username() == kicked_name:
+            if self.current_lobby.get("code") == code:
                 self._show_message("You were kicked from the lobby.")
+                request_helper.leave_signalr_group(code)
                 self.current_lobby = None
-            else:
-                self.refresh_lobbies()
+            return
+
+        if self.current_lobby.get("code") == code:
+            self.refresh_lobbies()
+            updated = next((l for l in self.lobbies if l.get("code") == code), None)
+            if updated:
+                self.current_lobby = updated
+                self._build_kick_buttons()
+                if request_helper.get_username() != updated.get("hostPlayer"):
+                    self._show_message(f"{kicked_name} was kicked from the lobby.")
 
     def _on_lobby_deleted(self, data):
-        print(f"[SignalR] Lobby deleted: {data}")
         self.refresh_lobbies()
 
     def _cancel_level_popup(self):
@@ -641,6 +673,7 @@ class MultiplayerMenu:
     def _confirm_level_popup(self):
         if self.selected_temp_level:
             self.selected_level = self.selected_temp_level
+            self.selected_level_id = self.selected_temp_level["id"]
         self.show_level_popup = False
 
     def _join_lobby(self, code):
@@ -653,10 +686,8 @@ class MultiplayerMenu:
             self.password_input = ""
             self.password_target_code = code
             self.password_timer = pygame.time.get_ticks()
-            print("Lobby requires password, showing popup.")
             return
 
-        print(f"Attempting to join lobby {code}")
         if request_helper.join_lobby(code):
             self._show_message("Joined the lobby successfully!")
             self.btn_leave = Button("Leave Lobby", (0.15, 0.85, 0.25, 0.07),
@@ -695,6 +726,57 @@ class MultiplayerMenu:
         else:
             self._show_message("Left the lobby successfully!")
 
+    def _start_lobby(self):
+        if not self.current_lobby:
+            return
+
+        code = self.current_lobby.get("code")
+        success = request_helper.start_lobby(code)
+
+        if success:
+            self._show_message("Lobby started successfully!")
+        else:
+            self._show_message("Failed to start lobby.")
+
+    def on_lobby_started(self, data):
+        code = data.get("lobbyCode")
+
+        if self.current_lobby and self.current_lobby.get("code") == code:
+            self.current_lobby["hasStarted"] = True
+            self._show_message("Lobby has started!")
+
+            current_user = request_helper.get_username()
+            if self.current_lobby.get("hostPlayer") == current_user:
+                self.enter_multiplayer_environment()
+
+    def enter_multiplayer_environment(self):
+
+        if not self.current_lobby:
+            return
+
+        code = self.current_lobby.get("code")
+        host_name = self.current_lobby.get("hostPlayer", "")
+        current_user = request_helper.get_username()
+        is_host = (current_user == host_name)
+
+        level_id = self.selected_level_id
+        level = None
+        if level_id:
+            level = request_helper.workshopitem_to_object(request_helper.get_workshop_item_by_id(level_id))
+
+        self.environment = Environment(
+            self.screen,
+            level=level,
+            sandbox_alphabet=None,
+            multiplayer=True,
+            is_host=is_host,
+            lobby_code=code
+        )
+
+        self.in_environment = True
+        print(f"[MultiplayerMenu] Environment started for lobby {code}, host={is_host}")
+
+
     def _load_levels(self):
         self.results = request_helper.get_workshop_items() or []
         non_filtered_levels = self.results.get("LevelItems", [])
@@ -704,7 +786,6 @@ class MultiplayerMenu:
             subscribed = level.get("userIsSubscribed", False)
             if author == "TuringSandbox" or subscribed:
                 self.level_results.append(level)
-        print(f"Loaded {len(self.level_results)} levels from Workshop.")
 
     def _show_message(self, text):
         self.message_text = text
@@ -714,7 +795,6 @@ class MultiplayerMenu:
         self.on_close()
 
     def _search_lobby_by_code(self, code):
-        print(f"Searching for lobbies containing: {code}")
         all_lobbies = request_helper.get_lobbies() or []
         filtered = [
             l for l in all_lobbies
@@ -729,5 +809,19 @@ class MultiplayerMenu:
             self.lobbies = []
             self._build_join_buttons()
             self._show_message("No lobbies found.")
+
+    def on_environment_synced(self, data):
+        print(f"[SignalR] Environment synced: {data.keys() if isinstance(data, dict) else data}")
+        code = data.get("lobbyCode")
+        state = data.get("state")
+
+        if not state or not self.current_lobby:
+            return
+
+        if self.environment and self.current_lobby.get("code") == code:
+            print(f"[Multiplayer] Applying remote state for lobby {code} ...")
+            self.environment.apply_remote_state(state)
+        else:
+            print(f"[Multiplayer] Ignored state for lobby {code} (not active).")
 
 
