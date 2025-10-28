@@ -6,26 +6,56 @@ from datetime import datetime, timezone
 
 
 def time_since_utc(utc_str):
+    if not utc_str:
+        return "?"
     try:
-        utc_time = datetime.fromisoformat(utc_str.replace("Z", "+00:00")).astimezone(timezone.utc)
-        local_time = utc_time.astimezone()
-        now = datetime.now().astimezone()
+        s = utc_str.strip()
 
-        diff = now - local_time
+        if s.endswith("Z"):
+            fmt_variants = [
+                "%Y-%m-%dT%H:%M:%S.%fZ",
+                "%Y-%m-%dT%H:%M:%SZ",
+            ]
+        elif "+" in s or "-" in s[10:]:
+            fmt_variants = [
+                "%Y-%m-%dT%H:%M:%S.%f%z",
+                "%Y-%m-%dT%H:%M:%S%z",
+            ]
+        else:
+            fmt_variants = [
+                "%Y-%m-%dT%H:%M:%S.%f",
+                "%Y-%m-%dT%H:%M:%S",
+            ]
+
+        dt = None
+        for fmt in fmt_variants:
+            try:
+                dt = datetime.strptime(s, fmt)
+                break
+            except ValueError:
+                continue
+
+        if dt is None:
+            return "?"
+
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+
+        now = datetime.now(timezone.utc)
+        diff = now - dt
         seconds = int(diff.total_seconds())
 
         if seconds < 60:
             return f"{seconds}s ago"
         elif seconds < 3600:
-            mins = seconds // 60
-            return f"{mins}m ago"
+            return f"{seconds // 60}m ago"
         elif seconds < 86400:
-            hours = seconds // 3600
-            return f"{hours}h ago"
+            return f"{seconds // 3600}h ago"
         else:
-            days = seconds // 86400
-            return f"{days}d ago"
-    except Exception:
+            return f"{seconds // 86400}d ago"
+
+    except Exception as e:
+        print(f"⚠️ Failed to parse UTC time: {utc_str} ({e})")
         return "?"
 
 class MultiplayerMenu:
@@ -37,19 +67,21 @@ class MultiplayerMenu:
         self.font_medium = FontManager.get(28, bold=True)
 
         self.btn_back = Button("Back", (0.04, 0.03, 0.12, 0.06), self.font_small, self._close)
-        self.btn_host = Button("Host Lobby", (0.15, 0.55, 0.25, 0.08), self.font_medium, self._host)
+        self.btn_host = Button("Host Lobby", (0.15, 0.80, 0.25, 0.08), self.font_medium, self._host)
 
         self.scroll_offset = 0
         self.scroll_speed = 40
         self.lobby_scroll = 0
         self.level_scroll = 0
         self.lobbies = []
+        self.kick_buttons = []
 
         request_helper.connect_signalr(
             on_lobby_created=self._on_lobby_created,
             on_player_joined=self._on_player_joined,
             on_player_left=self._on_player_left,
-            on_lobby_deleted=self._on_lobby_deleted
+            on_lobby_deleted=self._on_lobby_deleted,
+            on_player_kicked=self._on_player_kicked
         )
         self.join_buttons = []
         self.current_lobby = None
@@ -70,14 +102,20 @@ class MultiplayerMenu:
         self.level_results = []
         self.level_cursor_visible = True
         self.level_timer = 0
-        self.btn_level_cancel = Button("Cancel", (0.25, 0.73, 0.15, 0.07),
+        self.btn_level_cancel = Button("Cancel", (0.60, 0.73, 0.15, 0.07),
                                        self.font_small, self._cancel_level_popup)
-        self.btn_level_ok = Button("OK", (0.60, 0.73, 0.15, 0.07),
+        self.btn_level_ok = Button("OK", (0.25, 0.73, 0.15, 0.07),
                                    self.font_small, self._confirm_level_popup)
         self.selected_temp_level = None
         self.message_text = ""
         self.message_time = 0
         self.message_duration = 3000
+
+        self.code_search = ""
+        self.code_search_rect = None
+        self.code_search_focused = False
+        self.code_search_timer = 0
+        self.code_cursor_visible = True
 
     def refresh_lobbies(self):
         self.lobbies = request_helper.get_lobbies() or []
@@ -90,6 +128,33 @@ class MultiplayerMenu:
             btn = Button("Join", (0.0, 0.0, 0.2, 0.05),
                          self.font_small, lambda c=code: self._join_lobby(c))
             self.join_buttons.append(btn)
+
+    def _build_kick_buttons(self):
+        self.kick_buttons.clear()
+        if not self.current_lobby:
+            return
+
+        w, h = self.screen.get_size()
+        players = self.current_lobby.get("lobbyPlayers", [])
+        host_name = self.current_lobby.get("hostPlayer", "Unknown")
+        current_user = request_helper.get_username()
+
+        if current_user != host_name:
+            return
+
+        players_rect = pygame.Rect(int(w * 0.55), int(h * 0.5),
+                                   int(w * 0.38), int(h * 0.4))
+        y0 = players_rect.y + 50
+
+        for i, name in enumerate(players):
+            if name == host_name:
+                continue
+            text_y = y0 + i * 40
+            btn_rect = pygame.Rect(players_rect.right - int(w * 0.07),
+                                   text_y - 5, int(w * 0.05), int(h * 0.04))
+            btn = Button("Kick", btn_rect, self.font_small,
+                         lambda uname=name: self._kick_player(uname))
+            self.kick_buttons.append(btn)
 
     def update(self, dt):
         pass
@@ -137,6 +202,34 @@ class MultiplayerMenu:
                                  int(w * 0.38), int(h * 0.7))
         pygame.draw.rect(self.screen, (35, 38, 60), panel_rect, border_radius=15)
         pygame.draw.rect(self.screen, COLORS["accent"], panel_rect, 2, border_radius=15)
+
+        label = self.font_small.render("Code:", True, COLORS["text"])
+        label_x = int(w * 0.55)
+        label_y = int(h * 0.145)
+        self.screen.blit(label, (label_x, label_y))
+
+        input_w = int(w * 0.1)
+        input_h = int(h * 0.045)
+        input_x = label_x + label.get_width() + 10
+        input_y = label_y - 5
+        self.code_search_rect = pygame.Rect(input_x, input_y, input_w, input_h)
+
+        pygame.draw.rect(self.screen, (45, 48, 75), self.code_search_rect, border_radius=6)
+        pygame.draw.rect(self.screen, COLORS["accent"], self.code_search_rect, 2, border_radius=6)
+
+        now = pygame.time.get_ticks()
+        if now - self.code_search_timer > 500:
+            self.code_cursor_visible = not self.code_cursor_visible
+            self.code_search_timer = now
+
+        display = self.code_search
+        if self.code_search_focused and self.code_cursor_visible:
+            display += "|"
+        elif not display and not self.code_search_focused:
+            display = "Search..."
+
+        txt = self.font_small.render(display, True, COLORS["text"])
+        self.screen.blit(txt, (self.code_search_rect.x + 8, self.code_search_rect.y + 8))
 
         y_start = panel_rect.y + int(h * 0.02)
         item_h = int(h * 0.065)
@@ -210,32 +303,46 @@ class MultiplayerMenu:
         pygame.draw.rect(self.screen, (35, 38, 60), players_rect, border_radius=15)
         pygame.draw.rect(self.screen, COLORS["accent"], players_rect, 2, border_radius=15)
 
-        host = lobby.get("hostPlayer", "Unknown")
+        host_name = lobby.get("hostPlayer", "Unknown")
         players = lobby.get("lobbyPlayers", [])
-        y0 = players_rect.y + 40
+        y0 = players_rect.y + 50
+
         self.screen.blit(self.font_medium.render("Players", True, COLORS["accent"]),
                          (players_rect.x + 20, players_rect.y + 10))
-        for i, p in enumerate(players):
-            if isinstance(p, dict):
-                name = p.get("username", str(p))
-            else:
-                name = str(p)
-            tag = "[HOST] " if name == host else ""
-            self.screen.blit(self.font_small.render(f"{tag}{name}", True, COLORS["text"]),
-                             (players_rect.x + 25, y0 + i * 30))
+
+        for i, name in enumerate(players):
+            tag = "[HOST] " if name == host_name else ""
+            text_y = y0 + i * 40
+            name_surf = self.font_small.render(f"{tag}{name}", True, COLORS["text"])
+            self.screen.blit(name_surf, (players_rect.x + 25, text_y))
+
+        for btn in self.kick_buttons:
+            btn.draw(self.screen)
 
         if hasattr(self, "btn_leave"):
             self.btn_leave.draw(self.screen)
 
     def _draw_host_form(self, w, h):
+        left_rect = pygame.Rect(int(w * 0.08), int(h * 0.2),
+                                int(w * 0.38), int(h * 0.7))
+        pygame.draw.rect(self.screen, (35, 38, 60), left_rect, border_radius=15)
+        pygame.draw.rect(self.screen, COLORS["accent"], left_rect, 2, border_radius=15)
+        for y in range(left_rect.y, left_rect.bottom, 40):
+            pygame.draw.line(self.screen, (30, 32, 50),
+                             (left_rect.x + 10, y),
+                             (left_rect.right - 10, y))
+
         toggle_size = int(h * 0.04)
-        toggle_rect = pygame.Rect(int(w * 0.15), int(h * 0.25), toggle_size, toggle_size)
+        toggle_rect = pygame.Rect(int(w * 0.09), int(h * 0.25), toggle_size, toggle_size)
 
         pygame.draw.rect(self.screen, (80, 80, 110), toggle_rect, border_radius=4)
         pygame.draw.rect(self.screen, COLORS["accent"], toggle_rect, 2, border_radius=4)
 
         label_surface = self.font_small.render("Password Protection", True, COLORS["text"])
         self.screen.blit(label_surface, (toggle_rect.right + 12, toggle_rect.y + 5))
+
+        self.btn_host.rect = pygame.Rect(int(w * 0.15), int(h * 0.80),
+                                        int(w * 0.25), int(h * 0.08))
 
         if self.require_password:
             pad = int(toggle_size * 0.2)
@@ -269,7 +376,7 @@ class MultiplayerMenu:
         else:
             self.password_rect = None
 
-        lvl_rect = pygame.Rect(int(w * 0.15), int(h * 0.35), int(w * 0.06), int(h * 0.04))
+        lvl_rect = pygame.Rect(int(w * 0.09), int(h * 0.35), int(w * 0.06), int(h * 0.04))
         pygame.draw.rect(self.screen, (45, 48, 75), lvl_rect, border_radius=8)
         pygame.draw.rect(self.screen, COLORS["accent"], lvl_rect, 2, border_radius=8)
         txt = self.font_small.render("Select Level", True, COLORS["text"])
@@ -350,6 +457,20 @@ class MultiplayerMenu:
         self.btn_level_cancel.draw(self.screen)
         self.btn_level_ok.draw(self.screen)
 
+    def _kick_player(self, player_name):
+        if not self.current_lobby or not player_name:
+            return
+
+        code = self.current_lobby.get("code")
+        print(f"Kicking player '{player_name}' from lobby {code}")
+        success = request_helper.kick_player(code, player_name)
+
+        if success:
+            self._show_message(f"{player_name} was kicked.")
+            self.refresh_lobbies()
+        else:
+            self._show_message("Failed to kick player.")
+
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEWHEEL and not self.show_level_popup:
@@ -366,6 +487,7 @@ class MultiplayerMenu:
                             (l for l in self.lobbies if l.get("code") == self.password_target_code), None)
                         self.btn_leave = Button("Leave Lobby", (0.15, 0.85, 0.25, 0.07),
                                                 self.font_medium, self._leave_lobby)
+                        self._build_kick_buttons()
                     else:
                         self._show_message("Incorrect password or failed join.")
                     self.show_password_popup = False
@@ -390,6 +512,7 @@ class MultiplayerMenu:
                 start = self.level_scroll
                 end = min(start + max_visible, len(self.level_results))
 
+
                 for i, lvl in enumerate(self.level_results[start:end], start=start):
                     rect = pygame.Rect(box.x + 20, y_start + (i - start) * (item_height + 10),
                                        box.width - 40, item_height)
@@ -410,8 +533,14 @@ class MultiplayerMenu:
         self.btn_back.handle_event(event)
         if event.type == pygame.MOUSEBUTTONDOWN:
             mx, my = event.pos
-            toggle_rect = pygame.Rect(int(self.screen.get_width() * 0.15), int(self.screen.get_height() * 0.25),
+            toggle_rect = pygame.Rect(int(self.screen.get_width() * 0.09), int(self.screen.get_height() * 0.25),
                                       int(self.screen.get_width() * 0.05), int(self.screen.get_height() * 0.05))
+
+            if self.code_search_rect and self.code_search_rect.collidepoint(mx, my):
+                self.code_search_focused = True
+            else:
+                self.code_search_focused = False
+
             if toggle_rect.collidepoint(mx, my):
                 self.require_password = not self.require_password
                 self.host_password = ""
@@ -420,11 +549,25 @@ class MultiplayerMenu:
                 self.password_focused = True
             else:
                 self.password_focused = False
-            lvl_rect = pygame.Rect(int(self.screen.get_width() * 0.15), int(self.screen.get_height() * 0.35),
-                                   int(self.screen.get_width() * 0.25), int(self.screen.get_height() * 0.06))
+            lvl_rect = pygame.Rect(int(self.screen.get_width() * 0.09), int(self.screen.get_height() * 0.35),
+                                   int(self.screen.get_width() * 0.06), int(self.screen.get_height() * 0.04))
             if lvl_rect.collidepoint(mx, my):
                 self.show_level_popup = True
                 self._load_levels()
+
+        if self.code_search_focused and event.type == pygame.KEYDOWN and not self.show_level_popup:
+            if event.key == pygame.K_BACKSPACE:
+                self.code_search = self.code_search[:-1]
+                self._search_lobby_by_code(self.code_search)
+            elif event.key == pygame.K_RETURN:
+                if len(self.code_search) == 5 and self.code_search.isdigit():
+                    self._search_lobby_by_code(self.code_search)
+            else:
+                ch = event.unicode
+                if len(ch) == 1 and ch.isdigit() and len(self.code_search) < 5:
+                    self.code_search += ch
+                    self._search_lobby_by_code(self.code_search)
+
         if self.require_password and self.password_focused and event.type == pygame.KEYDOWN and not self.show_password_popup:
             if event.key == pygame.K_BACKSPACE:
                 self.host_password = self.host_password[:-1]
@@ -435,6 +578,8 @@ class MultiplayerMenu:
         self.btn_host.handle_event(event)
         for button in self.join_buttons:
             button.handle_event(event)
+        for btn in getattr(self, "kick_buttons", []):
+            btn.handle_event(event)
         if event.type == pygame.KEYDOWN and not self.show_level_popup and not self.show_password_popup:
             if event.key == pygame.K_ESCAPE:
                 self._close()
@@ -454,6 +599,7 @@ class MultiplayerMenu:
             updated = next((l for l in self.lobbies if l.get("code") == code), None)
             if updated:
                 self.current_lobby = updated
+                self._build_kick_buttons()
 
     def _on_player_left(self, data):
         print(f"[SignalR] Player left: {data}")
@@ -468,6 +614,22 @@ class MultiplayerMenu:
             updated = next((l for l in self.lobbies if l.get("code") == code), None)
             if updated:
                 self.current_lobby = updated
+                self._build_kick_buttons()
+
+    def _on_player_kicked(self, data):
+        print(f"[SignalR] Player kicked: {data}")
+        if not self.current_lobby:
+            return
+
+        code = data.get("lobbyCode")
+        kicked_name = data.get("kickedPlayerName")
+
+        if self.current_lobby.get("code") == code:
+            if request_helper.get_username() == kicked_name:
+                self._show_message("You were kicked from the lobby.")
+                self.current_lobby = None
+            else:
+                self.refresh_lobbies()
 
     def _on_lobby_deleted(self, data):
         print(f"[SignalR] Lobby deleted: {data}")
@@ -503,6 +665,7 @@ class MultiplayerMenu:
             request_helper.join_signalr_group(code)
             lobby = next((l for l in self.lobbies if l.get("code") == code), None)
             self.current_lobby = lobby
+            self._build_kick_buttons()
 
     def _leave_lobby(self):
         if not self.current_lobby:
@@ -528,6 +691,7 @@ class MultiplayerMenu:
             request_helper.join_signalr_group(lobby_data["code"])
             self.btn_leave = Button("Leave Lobby", (0.15, 0.85, 0.25, 0.07),
                                     self.font_medium, self._leave_lobby)
+            self._build_kick_buttons()
         else:
             self._show_message("Left the lobby successfully!")
 
@@ -548,3 +712,22 @@ class MultiplayerMenu:
 
     def _close(self):
         self.on_close()
+
+    def _search_lobby_by_code(self, code):
+        print(f"Searching for lobbies containing: {code}")
+        all_lobbies = request_helper.get_lobbies() or []
+        filtered = [
+            l for l in all_lobbies
+            if str(l.get("code", "")).startswith(code)
+        ]
+
+        if filtered:
+            self.lobbies = filtered
+            self._build_join_buttons()
+            self._show_message(f"Found {len(filtered)} lobby(ies) matching '{code}'.")
+        else:
+            self.lobbies = []
+            self._build_join_buttons()
+            self._show_message("No lobbies found.")
+
+

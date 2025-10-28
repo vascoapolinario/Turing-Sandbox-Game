@@ -74,6 +74,9 @@ class WorkshopMenu:
             self.items = []
 
     def _filter_items(self):
+        for i in self.items:
+            if i.get("author") == "TuringSandbox":
+                self.items.remove(i)
         if self.active_tab == "All":
             self.filtered_items = self.items
         else:
@@ -117,15 +120,17 @@ class WorkshopMenu:
                 save_manager.delete_workshop_item(item["name"], is_level=True)
             else:
                 save_manager.delete_workshop_item(item["name"], is_level=False)
+            self.refresh_items(self.search_query)
     def _rate_item(self, item, rating: int):
         ok = request_helper.rate_workshop_item(item["id"], rating)
         if ok:
             item["userRating"] = rating
             print(f"Rated item {item['name']} with {rating} stars")
             self._buttons_dirty = True
+            self.refresh_items(self.search_query)
 
     def _add_item(self):
-        self.add_menu = AddMenu(self.screen, on_close=lambda: setattr(self, "add_menu", None))
+        self.add_menu = AddMenu(self.screen, on_close=lambda:(setattr(self, "add_menu", None), self.refresh_items(self.search_query)))
 
     def _close(self):
         self.on_close()

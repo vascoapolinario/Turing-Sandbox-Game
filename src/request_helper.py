@@ -3,6 +3,7 @@ import json
 import requests
 import TuringMachine
 import Level
+import urllib.parse
 
 SESSION_PATH = os.path.expanduser("~/Documents/Turing Sandbox Saves/Auth/session.json")
 WORKSHOP_DIR = os.path.expanduser("~/Documents/Turing Sandbox Saves/workshop")
@@ -48,7 +49,7 @@ def load_session():
                 return token, user
         headers = {"Authorization": f"Bearer {token}"}
         debug_requests("load_session")
-        r = requests.get(AUTH_VERIFY_URL, headers=headers, verify=VERIFY_SSL, timeout=3)
+        r = requests.get(AUTH_VERIFY_URL, headers=headers, verify=VERIFY_SSL, timeout=7)
 
         if r.status_code == 200:
             verified = r.json()
@@ -85,7 +86,7 @@ def verify_authentication():
         return False
     headers = {"Authorization": f"Bearer {token}"}
     try:
-        r = requests.get(AUTH_VERIFY_URL, headers=headers, verify=VERIFY_SSL, timeout=3)
+        r = requests.get(AUTH_VERIFY_URL, headers=headers, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             verified = r.json()
             return verified.get("valid", False)
@@ -106,7 +107,7 @@ def login_user(username: str, password: str):
     try:
         r = requests.post(f"{AUTH_POP_UP_URL}/login",
                           json={"username": username, "password": password},
-                          verify=VERIFY_SSL, timeout=5)
+                          verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             data = r.json()
             token = data.get("token")
@@ -124,7 +125,7 @@ def register_user(username: str, password: str):
     try:
         r = requests.post(f"{AUTH_POP_UP_URL}",
                           json={"username": username, "password": password},
-                          verify=VERIFY_SSL, timeout=5)
+                          verify=VERIFY_SSL, timeout=7)
         if r.status_code in (200, 201):
             return r.json()
         else:
@@ -141,7 +142,7 @@ def get_workshop_items(name_filter: str = None):
     headers = get_auth_headers()
     params = {"NameFilter": name_filter} if name_filter else {}
     try:
-        r = requests.get(WORKSHOP_URL, headers=headers, params=params, verify=VERIFY_SSL, timeout=5)
+        r = requests.get(WORKSHOP_URL, headers=headers, params=params, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             data = r.json()
             print(data)
@@ -162,7 +163,7 @@ def get_workshop_item_by_id(item_id: int):
     debug_requests("get_workshop_item_by_id")
     headers = get_auth_headers()
     try:
-        r = requests.get(f"{WORKSHOP_URL}/{item_id}", headers=headers, verify=VERIFY_SSL, timeout=5)
+        r = requests.get(f"{WORKSHOP_URL}/{item_id}", headers=headers, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             return r.json()
         elif r.status_code == 404:
@@ -179,7 +180,7 @@ def create_workshop_item(item_json):
     headers = get_auth_headers()
     headers["Content-Type"] = "application/json"
     try:
-        r = requests.post(WORKSHOP_URL, headers=headers, json=item_json, verify=VERIFY_SSL, timeout=5)
+        r = requests.post(WORKSHOP_URL, headers=headers, json=item_json, verify=VERIFY_SSL, timeout=7)
         if r.status_code in (200, 201):
             return r.json()
         else:
@@ -197,7 +198,7 @@ def rate_workshop_item(item_id: int, rating: int):
 
     headers = get_auth_headers()
     try:
-        r = requests.post(f"{WORKSHOP_URL}/{item_id}/rate/{rating}", headers=headers, verify=VERIFY_SSL, timeout=5)
+        r = requests.post(f"{WORKSHOP_URL}/{item_id}/rate/{rating}", headers=headers, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             print("Rating submitted successfully.")
             return True
@@ -216,7 +217,7 @@ def toggle_subscription(item_id: int):
     debug_requests("toggle_subscription")
     headers = get_auth_headers()
     try:
-        r = requests.post(f"{WORKSHOP_URL}/{item_id}/subscribe", headers=headers, verify=VERIFY_SSL, timeout=5)
+        r = requests.post(f"{WORKSHOP_URL}/{item_id}/subscribe", headers=headers, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             print("Subscription toggled successfully.")
             return True
@@ -233,7 +234,7 @@ def is_subscribed(item_id: int):
     debug_requests("is_subscribed")
     headers = get_auth_headers()
     try:
-        r = requests.get(f"{WORKSHOP_URL}/{item_id}/subscribed", headers=headers, verify=VERIFY_SSL, timeout=5)
+        r = requests.get(f"{WORKSHOP_URL}/{item_id}/subscribed", headers=headers, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             return r.json() if r.text.strip().lower() in ["true", "false"] else bool(r.json())
         elif r.status_code == 404:
@@ -351,11 +352,29 @@ def get_user():
     except Exception:
         return None
 
+def get_username():
+    user = get_user()
+    if user:
+        return user.get("username", "Unknown")
+    return "Unknown"
+
+def get_user_id():
+    user = get_user()
+    if user:
+        return user.get("id", None)
+    return None
+
+def get_user_role():
+    user = get_user()
+    if user:
+        return user.get("role", "User")
+    return "User"
+
 def delete_workshop_item(id):
     debug_requests("delete_workshop_item")
     headers = get_auth_headers()
     try:
-        r = requests.delete(f"{WORKSHOP_URL}/{id}", headers=headers, verify=VERIFY_SSL, timeout=5)
+        r = requests.delete(f"{WORKSHOP_URL}/{id}", headers=headers, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             print("Workshop item deleted successfully.")
             return True
@@ -371,7 +390,7 @@ def get_lobbies():
     debug_requests("get_lobbies")
     headers = get_auth_headers()
     try:
-        r = requests.get(LOBBY_URL, headers=headers, verify=VERIFY_SSL, timeout=5)
+        r = requests.get(LOBBY_URL, headers=headers, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             return r.json()
         else:
@@ -387,7 +406,7 @@ def create_lobby(selected_level_id: int, password: str = None):
     if password:
         params["password"] = password
     try:
-        r = requests.post(LOBBY_URL, headers=headers, params=params, verify=VERIFY_SSL, timeout=5)
+        r = requests.post(LOBBY_URL, headers=headers, params=params, verify=VERIFY_SSL, timeout=7)
         if r.status_code in (200, 201):
             print("Lobby created successfully.")
             return r.json()
@@ -402,7 +421,7 @@ def join_lobby(code, password=None):
     headers = get_auth_headers()
     params = {"password": password} if password else {}
     try:
-        r = requests.post(f"{LOBBY_URL}/{code}/join", headers=headers, params=params, verify=VERIFY_SSL, timeout=5)
+        r = requests.post(f"{LOBBY_URL}/{code}/join", headers=headers, params=params, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             print(f"Joined lobby {code} successfully.")
             return True
@@ -417,7 +436,8 @@ from signalrcore.hub_connection_builder import HubConnectionBuilder
 hub_connection = None
 
 
-def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left=None, on_lobby_deleted=None):
+def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left=None, on_lobby_deleted=None,
+                    on_player_kicked=None):
     global hub_connection
 
     HUB_URL = LOBBY_URL.replace("/lobbies", "/hubs/lobby")
@@ -446,6 +466,8 @@ def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left
             hub_connection.on("PlayerLeft", lambda args: on_player_left(args[0]))
         if on_lobby_deleted:
             hub_connection.on("LobbyDeleted", lambda args: on_lobby_deleted(args[0]))
+        if on_player_kicked:
+            hub_connection.on("PlayerKicked", lambda args: on_player_kicked(args[0]))
 
         hub_connection.start()
         print("Connected to LobbyHub SignalR")
@@ -458,7 +480,7 @@ def leave_lobby(code):
     debug_requests("leave_lobby")
     headers = get_auth_headers()
     try:
-        r = requests.post(f"{LOBBY_URL}/{code}/leave", headers=headers, verify=VERIFY_SSL, timeout=5)
+        r = requests.post(f"{LOBBY_URL}/{code}/leave", headers=headers, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             print(f"Left lobby {code}")
             return True
@@ -467,6 +489,22 @@ def leave_lobby(code):
     except Exception as e:
         print("Leave lobby failed:", e)
     return False
+
+def kick_player(code, player_name):
+    try:
+        headers = get_auth_headers()
+        safe_name = urllib.parse.quote(player_name)
+        resp = requests.post(f"{LOBBY_URL}/{code}/kick/{safe_name}", headers=headers)
+        print("Kick response:", resp.status_code, resp.text)
+        if resp.status_code != 200:
+            return False
+        data = resp.json() if resp.text else {}
+        msg = data.get("message", "").lower()
+        return "kicked" in msg or "success" in msg
+    except Exception as e:
+        print(f"Error kicking player: {e}")
+        return False
+
 
 def join_signalr_group(code: str):
     global hub_connection

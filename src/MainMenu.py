@@ -174,6 +174,7 @@ class MainMenu:
         if self.current_user is None:
             if request_helper.verify_authentication():
                 self.current_user = request_helper.get_user()
+                self.pressed = "multiplayer"
             else:
                 self.AuthenticationPopup = AuthenticationPopup(self.screen, on_authenticated=self._on_auth)
         else:
