@@ -437,7 +437,7 @@ hub_connection = None
 
 
 def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left=None, on_lobby_deleted=None,
-                    on_player_kicked=None, on_lobby_started=None, on_environment_synced=None):
+                    on_player_kicked=None, on_lobby_started=None, on_environment_synced=None, on_node_proposed=None):
     global hub_connection
 
     HUB_URL = LOBBY_URL.replace("/lobbies", "/hubs/lobby")
@@ -472,6 +472,8 @@ def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left
             hub_connection.on("LobbyStarted", lambda args: on_lobby_started(args[0]))
         if on_environment_synced:
             hub_connection.on("EnvironmentSynced", lambda args: on_environment_synced(args[0]))
+        if on_node_proposed:
+            hub_connection.on("NodeProposed", lambda args: on_node_proposed(args[0]))
 
         hub_connection.start()
         print("Connected to LobbyHub SignalR")
@@ -562,7 +564,13 @@ def send_environment_state(lobby_code, state):
 
 def propose_node(lobby_code, pos, is_end):
     if hub_connection:
-        hub_connection.send("ProposeNode", [{"lobbyCode": lobby_code, "pos": pos, "isEnd": is_end}])
+        payload = {
+            "lobbyCode": lobby_code,
+            "pos": {"x": pos.x, "y": pos.y},
+            "isEnd": is_end
+        }
+        hub_connection.send("ProposeNode", [payload])
+        print(f"[SignalR] Sent node proposal: {payload}")
 
 def propose_connection(data):
     if hub_connection:
@@ -571,3 +579,4 @@ def propose_connection(data):
 def propose_delete(lobby_code, target):
     if hub_connection:
         hub_connection.send("ProposeDelete", [{"lobbyCode": lobby_code, "target": target}])
+

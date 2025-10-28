@@ -623,3 +623,24 @@ class Environment:
 
             self._sync_machine()
         print(state)
+
+    def create_node_from_proposal(self, x, y, is_end):
+        pos = pygame.Vector2(x, y)
+        snapped_pos = self.grid.snap(pos)
+
+        existing = self._get_node_at(snapped_pos, world_space=True)
+        if existing:
+            print(f"[Host] Ignored proposed node at ({x}, {y}) — already occupied")
+            return
+
+        new_node = Node(snapped_pos, is_end=is_end)
+
+        # Optionally ensure we have a start node
+        if len(self.nodes) == 0 or not any(n.is_start for n in self.nodes):
+            new_node.is_start = True
+            new_node.id = 0
+
+        self.nodes.append(new_node)
+        self._sync_machine()
+        self._broadcast_state()
+        print(f"[Host] Added proposed node at ({snapped_pos.x}, {snapped_pos.y}) and broadcasted")

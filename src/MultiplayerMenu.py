@@ -84,6 +84,7 @@ class MultiplayerMenu:
             on_player_kicked=self._on_player_kicked,
             on_lobby_started=self.on_lobby_started,
             on_environment_synced=self.on_environment_synced,
+            on_node_proposed=self.on_node_proposed,
         )
         self.join_buttons = []
         self.current_lobby = None
@@ -827,5 +828,18 @@ class MultiplayerMenu:
             self.environment.apply_remote_state(state)
         else:
             print(f"[Multiplayer] Ignored state for lobby {code} (not active).")
+
+    def on_node_proposed(self, data):
+        code = data.get("lobbyCode")
+        if not self.environment or self.current_lobby.get("code") != code:
+            return
+
+        x = data.get("x")
+        y = data.get("y")
+        is_end = data.get("isEnd", False)
+        proposer = data.get("proposer", "?")
+        print(f"[Multiplayer] Node proposed by {proposer} at ({x}, {y}), end={is_end}")
+
+        self.environment.create_node_from_proposal(x, y, is_end)
 
 
