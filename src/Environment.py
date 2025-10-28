@@ -681,30 +681,35 @@ class Environment:
             print(f"[Host] Invalid connection proposal ({start_id}->{end_id})")
             return
 
-        def normalize(value):
-            print(value)
-            if isinstance(value, dict):
-                if "Values" in value and isinstance(value["Values"], list):
-                    return [str(v) for v in value["Values"]]
-                if "value" in value:
-                    return [str(value["value"])]
-                return [str(v) for v in value.values() if isinstance(v, (str, int, float))]
-
-            if isinstance(value, list):
-                if len(value) == 1 and isinstance(value[0], list):
-                    value = value[0]
-                return [str(v) for v in value]
-
+        def normalize_list(value):
             if value is None:
                 return []
-            return [str(value)]
+            if isinstance(value, list):
+                if len(value) == 1 and isinstance(value[0], list):
+                    return normalize_list(value[0])
+                return [str(v) for v in value]
+            if isinstance(value, (str, int, float)):
+                return [str(value)]
+            return []
 
-        read = normalize(data.get("read"))
-        write = normalize(data.get("write"))
-        move = normalize(data.get("move"))
-        read2 = normalize(data.get("read2"))
-        write2 = normalize(data.get("write2"))
-        move2 = normalize(data.get("move2"))
+        def normalize_single(value):
+            if value is None:
+                return ""
+            if isinstance(value, list):
+                if len(value) == 0:
+                    return ""
+                if isinstance(value[0], list):
+                    return normalize_single(value[0])
+                return str(value[0])
+            return str(value)
+
+        read = normalize_list(data.get("read"))
+        read2 = normalize_list(data.get("read2"))
+
+        write = normalize_single(data.get("write"))
+        move = normalize_single(data.get("move"))
+        write2 = normalize_single(data.get("write2"))
+        move2 = normalize_single(data.get("move2"))
 
         conn = Connection(start, end)
         conn.update_logic(read, write, move, read2, write2, move2)
@@ -715,6 +720,7 @@ class Environment:
         print(f"[Host] Added connection {start.id}->{end.id} and broadcasted")
 
     def apply_delete_proposal(self, target_data):
+        print("[Host] Applying delete proposal:", target_data)
         target_type = target_data.get("type")
         if target_type == "node":
             x = target_data.get("x")
