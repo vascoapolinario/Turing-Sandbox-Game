@@ -587,3 +587,9 @@ def propose_delete(lobby_code, target_data):
         hub_connection.send("ProposeDelete", [payload])
         print(f"[SignalR] Sent delete proposal → {payload.keys()}")
 
+import pygame
+UPDATE_EVENT = pygame.USEREVENT + 1
+
+def trigger_event():
+    pygame.event.post(pygame.event.Event(UPDATE_EVENT))
+

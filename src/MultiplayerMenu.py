@@ -619,6 +619,7 @@ class MultiplayerMenu:
 
     def _on_lobby_created(self, data):
         self.refresh_lobbies()
+        request_helper.trigger_event()
 
     def _on_player_joined(self, data):
         self.refresh_lobbies()
@@ -629,13 +630,16 @@ class MultiplayerMenu:
             if updated:
                 self.current_lobby = updated
                 self._build_kick_buttons()
+        request_helper.trigger_event()
 
     def _on_player_left(self, data):
         self.refresh_lobbies()
         if not any(l.get("code") == self.current_lobby.get("code") for l in self.lobbies):
             self.current_lobby = None
             request_helper.leave_signalr_group(data.get("lobbyCode"))
+            request_helper.trigger_event()
             return
+        request_helper.trigger_event()
 
         code = data.get("lobbyCode")
         if self.current_lobby and self.current_lobby.get("code") == code:
@@ -643,6 +647,7 @@ class MultiplayerMenu:
             if updated:
                 self.current_lobby = updated
                 self._build_kick_buttons()
+        request_helper.trigger_event()
 
     def _on_player_kicked(self, data):
         if not self.current_lobby:
@@ -666,9 +671,11 @@ class MultiplayerMenu:
                 self._build_kick_buttons()
                 if request_helper.get_username() != updated.get("hostPlayer"):
                     self._show_message(f"{kicked_name} was kicked from the lobby.")
+        request_helper.trigger_event()
 
     def _on_lobby_deleted(self, data):
         self.refresh_lobbies()
+        request_helper.trigger_event()
 
     def _cancel_level_popup(self):
         self.show_level_popup = False
@@ -700,6 +707,7 @@ class MultiplayerMenu:
             lobby = next((l for l in self.lobbies if l.get("code") == code), None)
             self.current_lobby = lobby
             self._build_kick_buttons()
+        request_helper.trigger_event()
 
     def _leave_lobby(self):
         if not self.current_lobby:
@@ -710,6 +718,7 @@ class MultiplayerMenu:
             self.current_lobby = None
             request_helper.leave_signalr_group(code)
             self.refresh_lobbies()
+        request_helper.trigger_event()
 
     def _host(self):
         if not self.selected_level:
@@ -728,6 +737,7 @@ class MultiplayerMenu:
             self._build_kick_buttons()
         else:
             self._show_message("Left the lobby successfully!")
+        request_helper.trigger_event()
 
     def _start_lobby(self):
         if not self.current_lobby:
@@ -740,6 +750,7 @@ class MultiplayerMenu:
             self._show_message("Lobby started successfully!")
         else:
             self._show_message("Failed to start lobby.")
+        request_helper.trigger_event()
 
     def on_lobby_started(self, data):
         code = data.get("lobbyCode")
@@ -749,6 +760,7 @@ class MultiplayerMenu:
             self._show_message("Lobby has started!")
 
             self.enter_multiplayer_environment()
+        request_helper.trigger_event()
 
     def enter_multiplayer_environment(self):
 
@@ -816,6 +828,7 @@ class MultiplayerMenu:
             self.lobbies = []
             self._build_join_buttons()
             self._show_message("No lobbies found.")
+        request_helper.trigger_event()
 
     def on_environment_synced(self, data):
         print(f"[SignalR] Environment synced: {data.keys() if isinstance(data, dict) else data}")
@@ -830,6 +843,7 @@ class MultiplayerMenu:
             self.environment.apply_remote_state(state)
         else:
             print(f"[Multiplayer] Ignored state for lobby {code} (not active).")
+        request_helper.trigger_event()
 
     def on_node_proposed(self, data):
         code = data.get("lobbyCode")
@@ -843,6 +857,7 @@ class MultiplayerMenu:
         print(f"[Multiplayer] Node proposed by {proposer} at ({x}, {y}), end={is_end}")
 
         self.environment.create_node_from_proposal(x, y, is_end)
+        request_helper.trigger_event()
 
     def on_connection_proposed(self, data):
         code = data.get("lobbyCode")
@@ -856,6 +871,7 @@ class MultiplayerMenu:
 
         # optional: auto-accept
         self.environment.create_connection_from_proposal(data)
+        request_helper.trigger_event()
 
     def on_delete_proposed(self, data):
         code = data.get("lobbyCode")
@@ -866,5 +882,6 @@ class MultiplayerMenu:
         proposer = data.get("proposer")
         print(f"[Multiplayer] Delete proposed by {proposer}")
         self.environment.apply_delete_proposal(target)
+        request_helper.trigger_event()
 
 
