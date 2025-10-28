@@ -85,6 +85,8 @@ class MultiplayerMenu:
             on_lobby_started=self.on_lobby_started,
             on_environment_synced=self.on_environment_synced,
             on_node_proposed=self.on_node_proposed,
+            on_connection_proposed=self.on_connection_proposed,
+            on_delete_proposed=self.on_delete_proposed,
         )
         self.join_buttons = []
         self.current_lobby = None
@@ -841,5 +843,28 @@ class MultiplayerMenu:
         print(f"[Multiplayer] Node proposed by {proposer} at ({x}, {y}), end={is_end}")
 
         self.environment.create_node_from_proposal(x, y, is_end)
+
+    def on_connection_proposed(self, data):
+        code = data.get("lobbyCode")
+        if not self.environment or self.current_lobby.get("code") != code:
+            return
+
+        start_id = data.get("startId")
+        end_id = data.get("endId")
+        proposer = data.get("proposer")
+        print(f"[Multiplayer] Connection proposed by {proposer} ({start_id}->{end_id})")
+
+        # optional: auto-accept
+        self.environment.create_connection_from_proposal(data)
+
+    def on_delete_proposed(self, data):
+        code = data.get("lobbyCode")
+        if not self.environment or self.current_lobby.get("code") != code:
+            return
+
+        target = data.get("target")
+        proposer = data.get("proposer")
+        print(f"[Multiplayer] Delete proposed by {proposer}")
+        self.environment.apply_delete_proposal(target)
 
 

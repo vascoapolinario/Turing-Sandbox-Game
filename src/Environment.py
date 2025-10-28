@@ -644,3 +644,44 @@ class Environment:
         self._sync_machine()
         self._broadcast_state()
         print(f"[Host] Added proposed node at ({snapped_pos.x}, {snapped_pos.y}) and broadcasted")
+
+    def create_connection_from_proposal(self, data):
+        start_id = data.get("startId")
+        end_id = data.get("endId")
+        start = next((n for n in self.nodes if n.id == start_id), None)
+        end = next((n for n in self.nodes if n.id == end_id), None)
+        if not start or not end:
+            print(f"[Host] Invalid connection proposal ({start_id}->{end_id})")
+            return
+
+        conn = Connection(start, end)
+        conn.update_logic(
+            data.get("read", []),
+            data.get("write", []),
+            data.get("move", []),
+            data.get("read2"),
+            data.get("write2"),
+            data.get("move2")
+        )
+
+        self.connections.append(conn)
+        self._sync_machine()
+        self._broadcast_state()
+        print(f"[Host] Added connection {start.id}->{end.id} and broadcasted")
+
+    def apply_delete_proposal(self, target_data):
+        target_type = target_data.get("type")
+        if target_type == "node":
+            node_id = target_data.get("id")
+            node = next((n for n in self.nodes if n.id == node_id), None)
+            if node:
+                self._delete_node(node)
+        elif target_type == "connection":
+            start_id = target_data.get("startId")
+            end_id = target_data.get("endId")
+            conn = next((c for c in self.connections if c.start.id == start_id and c.end.id == end_id), None)
+            if conn:
+                self.connections.remove(conn)
+        self._sync_machine()
+        self._broadcast_state()
+        print(f"[Host] Applied delete proposal and broadcasted")
