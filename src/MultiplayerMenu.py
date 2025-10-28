@@ -745,9 +745,7 @@ class MultiplayerMenu:
             self.current_lobby["hasStarted"] = True
             self._show_message("Lobby has started!")
 
-            current_user = request_helper.get_username()
-            if self.current_lobby.get("hostPlayer") == current_user:
-                self.enter_multiplayer_environment()
+            self.enter_multiplayer_environment()
 
     def enter_multiplayer_environment(self):
 
@@ -759,10 +757,16 @@ class MultiplayerMenu:
         current_user = request_helper.get_username()
         is_host = (current_user == host_name)
 
-        level_id = self.selected_level_id
-        level = None
-        if level_id:
-            level = request_helper.workshopitem_to_object(request_helper.get_workshop_item_by_id(level_id))
+        if is_host:
+            level_id = self.selected_level_id
+            level = None
+            if level_id:
+                level = request_helper.workshopitem_to_object(request_helper.get_workshop_item_by_id(level_id))
+        else:
+            level_name = self.current_lobby.get("levelName", "")
+            level = next((request_helper.workshopitem_to_object(item)
+                          for item in request_helper.get_workshop_items().get("LevelItems", [])
+                          if item.get("name") == level_name), None)
 
         self.environment = Environment(
             self.screen,

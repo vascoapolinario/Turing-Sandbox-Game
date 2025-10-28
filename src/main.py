@@ -55,6 +55,7 @@ def main():
     env = None
     level_menu = None
     settings_menu = None
+    multiplayer_menu = None
     state = "main_menu"
     previous_state = None
     discord_available = True
@@ -89,7 +90,8 @@ def main():
                     state = "main_menu"
 
             elif state == "multiplayer":
-                multiplayer_menu.update(dt)
+                if multiplayer_menu.in_environment:
+                    multiplayer_menu.environment.update(dt)
                 multiplayer_menu.draw()
                 multiplayer_menu.handle_event(event)
                 if menu.pressed == "":

@@ -620,4 +620,6 @@ class Environment:
             for conn_data in state.get("connections", []):
                 conn = Connection.from_dict(conn_data, self.nodes)
                 self.connections.append(conn)
+
+            self._sync_machine()
         print(state)
