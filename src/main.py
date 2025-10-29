@@ -137,8 +137,10 @@ def main():
                 multiplayer_menu.environment.update(dt)
                 if multiplayer_menu.environment.multiplayer_left:
                     multiplayer_menu.in_environment = False
+                    print("Left multiplayer environment")
                     multiplayer_menu._leave_lobby()
                     state = "main_menu"
+                    print("Returned to main menu from multiplayer")
             else:
                 multiplayer_menu.update(dt)
             multiplayer_menu.draw()

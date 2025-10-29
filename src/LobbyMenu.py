@@ -761,6 +761,7 @@ class LobbyMenu:
 
     def _on_player_joined(self, data):
         self._show_message("A player has joined the lobby.")
+        print("Player joined the lobby")
         if self.in_environment:
             if self.environment and self.environment.is_host:
                 threading.Timer(1.0, self.environment._broadcast_state).start()
@@ -777,11 +778,11 @@ class LobbyMenu:
 
     def _on_player_left(self, data):
         self._show_message("A player has left the lobby.")
+        print("Player left the lobby")
         self.refresh_lobbies()
         if not any(l.get("code") == self.current_lobby.get("code") for l in self.lobbies):
             if self.in_environment:
                 self.environment.multiplayer_left = True
-                return
             self.current_lobby = None
             request_helper.leave_signalr_group(data.get("lobbyCode"))
             request_helper.trigger_event()
@@ -795,6 +796,7 @@ class LobbyMenu:
                 self.current_lobby = updated
                 self._build_kick_buttons()
         request_helper.trigger_event()
+
 
     def _on_player_kicked(self, data):
         if not self.current_lobby:
@@ -827,8 +829,14 @@ class LobbyMenu:
             request_helper.trigger_event()
 
     def _on_lobby_deleted(self, data):
+        print("Lobby was closed by host")
+        code = data.get("lobbyCode")
+        if self.current_lobby and self.current_lobby.get("code") == code:
+            self._show_message("Host has closed the lobby.")
+            if self.in_environment:
+                self.environment.multiplayer_left = True
+            self.current_lobby = None
         self.refresh_lobbies()
-        request_helper.trigger_event()
 
     def _cancel_level_popup(self):
         self.show_level_popup = False
