@@ -137,6 +137,7 @@ def main():
                 multiplayer_menu.environment.update(dt)
                 if multiplayer_menu.environment.multiplayer_left:
                     multiplayer_menu.in_environment = False
+                    multiplayer_menu._leave_lobby()
                     state = "main_menu"
             else:
                 multiplayer_menu.update(dt)

@@ -1,3 +1,5 @@
+import threading
+
 import pygame
 from Button import Button, COLORS
 from FontManager import FontManager
@@ -616,6 +618,7 @@ class LobbyMenu:
                     if target_lobby["hasStarted"]:
                         if request_helper.join_lobby(self.password_target_code, self.password_input):
                             self.current_lobby = target_lobby
+                            request_helper.join_signalr_group(self.password_target_code)
                             self.enter_multiplayer_environment()
                     else:
                         if request_helper.join_lobby(self.password_target_code, self.password_input):
@@ -757,10 +760,10 @@ class LobbyMenu:
         request_helper.trigger_event()
 
     def _on_player_joined(self, data):
+        self._show_message("A player has joined the lobby.")
         if self.in_environment:
-            self._show_message("Player: " + data.get("playerName") + " has joined the lobby.")
             if self.environment and self.environment.is_host:
-                self.environment.send_environment_state()
+                threading.Timer(1.0, self.environment._broadcast_state).start()
         else:
             self.refresh_lobbies()
 
@@ -773,17 +776,17 @@ class LobbyMenu:
             request_helper.trigger_event()
 
     def _on_player_left(self, data):
-        if self.in_environment:
-            self._show_message("Player: " + data.get("playerName") + " has left the lobby.")
-            return
-        else:
-            self.refresh_lobbies()
-            if not any(l.get("code") == self.current_lobby.get("code") for l in self.lobbies):
-                self.current_lobby = None
-                request_helper.leave_signalr_group(data.get("lobbyCode"))
-                request_helper.trigger_event()
+        self._show_message("A player has left the lobby.")
+        self.refresh_lobbies()
+        if not any(l.get("code") == self.current_lobby.get("code") for l in self.lobbies):
+            if self.in_environment:
+                self.environment.multiplayer_left = True
                 return
+            self.current_lobby = None
+            request_helper.leave_signalr_group(data.get("lobbyCode"))
             request_helper.trigger_event()
+            return
+        request_helper.trigger_event()
 
         code = data.get("lobbyCode")
         if self.current_lobby and self.current_lobby.get("code") == code:
@@ -849,6 +852,11 @@ class LobbyMenu:
             return
 
         if request_helper.join_lobby(code):
+            if lobby.get("hasStarted", False):
+                self.current_lobby = lobby
+                request_helper.join_signalr_group(code)
+                self.enter_multiplayer_environment()
+                return
             self._show_message("Joined the lobby successfully!")
             self.btn_leave = Button("Leave Lobby", (0.15, 0.85, 0.25, 0.07),
                                     self.font_medium, self._leave_lobby)
@@ -1025,7 +1033,6 @@ class LobbyMenu:
         proposer = data.get("proposer")
         print(f"[Multiplayer] Connection proposed by {proposer} ({start_id}->{end_id})")
 
-        # optional: auto-accept
         self.environment.create_connection_from_proposal(data)
         request_helper.trigger_event()
 
