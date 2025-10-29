@@ -75,9 +75,9 @@ class NewLevelPopup:
 
             if key == "Alphabet":
                 if event.key == pygame.K_RETURN:
-                    if self.alphabet_input.strip() and self.alphabet_input.strip() not in self.alphabet_list:
+                    if self.alphabet_input.strip() and self.alphabet_input.strip().upper() not in self.alphabet_list:
                         if len(self.alphabet_input.strip()) == 1:
-                            self.alphabet_list.insert(0, self.alphabet_input.strip())
+                            self.alphabet_list.insert(0, self.alphabet_input.strip().upper())
                     self.alphabet_input = ""
                 elif event.key == pygame.K_BACKSPACE:
                     self.alphabet_input = self.alphabet_input[:-1]

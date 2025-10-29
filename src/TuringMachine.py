@@ -216,9 +216,10 @@ class TuringMachine:
                     self.input_active = False
                 elif event.key == pygame.K_BACKSPACE:
                     self.input_text = self.input_text[:-1]
-                elif event.unicode in self.alphabet and len(self.input_text) < 30:
-                    self.input_text += event.unicode
-            return
+                elif (event.unicode.upper() in self.alphabet) and len(self.input_text) < 30:
+                    self.input_text += event.unicode.upper()
+                else:
+                    return
 
         if event.type == pygame.MOUSEMOTION:
             self.hovered_button = None

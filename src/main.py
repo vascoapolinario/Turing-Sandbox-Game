@@ -8,7 +8,7 @@ from MainMenu import MainMenu
 from Environment import Environment
 from LevelSelectMenu import LevelSelectMenu
 from SettingsMenu import SettingsMenu
-from MultiplayerMenu import MultiplayerMenu
+from LobbyMenu import LobbyMenu
 import request_helper
 
 pygame.init()
@@ -78,21 +78,9 @@ def main():
             elif state == "level_select":
                 level_menu.handle_event(event)
             elif state == "settings":
-                settings_menu.update(dt)
-                settings_menu.draw()
-
-                if event.type == pygame.QUIT:
-                    running = False
                 settings_menu.handle_event(event)
 
-                if menu.pressed == "":
-                    sandbox_alphabet = settings_menu.sandbox_alphabet
-                    state = "main_menu"
-
             elif state == "multiplayer":
-                if multiplayer_menu.in_environment:
-                    multiplayer_menu.environment.update(dt)
-                multiplayer_menu.draw()
                 multiplayer_menu.handle_event(event)
                 if menu.pressed == "":
                     state = "main_menu"
@@ -109,7 +97,10 @@ def main():
                 state = "environment"
 
             elif menu.pressed == "levels":
-                level_menu = LevelSelectMenu(screen)
+                level_menu = LevelSelectMenu(
+                    screen,
+                    on_close=lambda: setattr(menu, "pressed", "")
+                )
                 state = "level_select"
 
 
@@ -118,18 +109,38 @@ def main():
                 state = "settings"
 
             elif menu.pressed == "multiplayer":
-                multiplayer_menu = MultiplayerMenu(screen, on_close=lambda: setattr(menu, "pressed", ""))
+                multiplayer_menu = LobbyMenu(screen, on_close=lambda: setattr(menu, "pressed", ""))
                 state = "multiplayer"
 
         elif state == "level_select":
             level_menu.update()
             level_menu.draw()
+            if menu.pressed == "":
+                state = "main_menu"
+
             if level_menu.level_to_start:
                 current_level = level_menu.level_to_start
                 env = Environment(screen, level=current_level)
                 if level_menu.solution_to_start[0]:
                     env.load_solution(level_menu.solution_to_start[1])
                 state = "environment"
+        elif state == "settings":
+            settings_menu.update(dt)
+            settings_menu.draw()
+
+            if menu.pressed == "":
+                sandbox_alphabet = settings_menu.sandbox_alphabet
+                state = "main_menu"
+
+        elif state == "multiplayer":
+            if multiplayer_menu.in_environment:
+                multiplayer_menu.environment.update(dt)
+                if multiplayer_menu.environment.multiplayer_left:
+                    multiplayer_menu.in_environment = False
+                    state = "main_menu"
+            else:
+                multiplayer_menu.update(dt)
+            multiplayer_menu.draw()
 
         elif state == "environment":
             env.update(dt)

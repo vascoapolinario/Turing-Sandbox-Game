@@ -12,21 +12,20 @@ def time_since_utc(utc_str):
     try:
         s = utc_str.strip()
 
-        if s.endswith("Z"):
-            fmt_variants = [
-                "%Y-%m-%dT%H:%M:%S.%fZ",
-                "%Y-%m-%dT%H:%M:%SZ",
-            ]
-        elif "+" in s or "-" in s[10:]:
-            fmt_variants = [
-                "%Y-%m-%dT%H:%M:%S.%f%z",
-                "%Y-%m-%dT%H:%M:%S%z",
-            ]
-        else:
-            fmt_variants = [
-                "%Y-%m-%dT%H:%M:%S.%f",
-                "%Y-%m-%dT%H:%M:%S",
-            ]
+        if "." in s:
+            head, tail = s.split(".", 1)
+            tail = tail.rstrip("Z")
+            tail = tail[:6]
+            s = f"{head}.{tail}Z" if utc_str.endswith("Z") else f"{head}.{tail}"
+
+        fmt_variants = [
+            "%Y-%m-%dT%H:%M:%S.%fZ",
+            "%Y-%m-%dT%H:%M:%SZ",
+            "%Y-%m-%dT%H:%M:%S.%f%z",
+            "%Y-%m-%dT%H:%M:%S%z",
+            "%Y-%m-%dT%H:%M:%S.%f",
+            "%Y-%m-%dT%H:%M:%S",
+        ]
 
         dt = None
         for fmt in fmt_variants:
@@ -36,7 +35,7 @@ def time_since_utc(utc_str):
             except ValueError:
                 continue
 
-        if dt is None:
+        if not dt:
             return "?"
 
         if dt.tzinfo is None:
@@ -55,10 +54,10 @@ def time_since_utc(utc_str):
         else:
             return f"{seconds // 86400}d ago"
 
-    except Exception as e:
+    except Exception:
         return "?"
 
-class MultiplayerMenu:
+class LobbyMenu:
     def __init__(self, screen, on_close):
         self.screen = screen
         self.on_close = on_close
@@ -118,6 +117,12 @@ class MultiplayerMenu:
         self.message_time = 0
         self.message_duration = 3000
 
+        self.lobby_name = ""
+        self.name_focused = False
+
+        self.max_players = 4
+        self.slider_dragging = False
+
         self.code_search = ""
         self.code_search_rect = None
         self.code_search_focused = False
@@ -169,6 +174,35 @@ class MultiplayerMenu:
     def update(self, dt):
         if self.in_environment and self.environment:
             self.environment.update(dt)
+            return
+
+        now = pygame.time.get_ticks()
+        if not hasattr(self, "_last_ui_refresh"):
+            self._last_ui_refresh = 0
+
+        if now - self._last_ui_refresh >= 1000:
+            self._last_ui_refresh = now
+            request_helper.trigger_event()
+            pygame.event.post(pygame.event.Event(pygame.USEREVENT, {"reason": "ui_refresh"}))
+
+    def _draw_title_box(self, text, w, h):
+        title_surf = self.font_title.render(text, True, COLORS["text"])
+        title_rect = title_surf.get_rect(center=(w / 2, h * 0.05))
+
+        pad_x = 40
+        pad_y = 20
+
+        box_rect = pygame.Rect(
+            title_rect.x - pad_x // 2,
+            title_rect.y - pad_y // 2,
+            title_rect.width + pad_x,
+            title_rect.height + pad_y
+        )
+
+        pygame.draw.rect(self.screen, (50, 70, 110), box_rect, border_radius=15)
+        pygame.draw.rect(self.screen, COLORS["accent"], box_rect, 3, border_radius=15)
+
+        self.screen.blit(title_surf, title_rect)
 
     def draw(self):
         if self.in_environment and self.environment:
@@ -182,12 +216,10 @@ class MultiplayerMenu:
         for y in range(0, h, 40):
             pygame.draw.line(self.screen, (30, 32, 50), (0, y), (w, y))
 
-        self.font_title = FontManager.get(int(64 * (h / 1080)), bold=True)
         self.font_small = FontManager.get(int(24 * (h / 1080)))
         self.font_medium = FontManager.get(int(28 * (h / 1080)), bold=True)
 
-        title = self.font_title.render("Multiplayer", True, COLORS["accent"])
-        self.screen.blit(title, title.get_rect(center=(w / 2, h * 0.1)))
+        self._draw_title_box("Multiplayer", w, h)
 
         if self.current_lobby:
             self._draw_lobby_view(w, h)
@@ -263,24 +295,25 @@ class MultiplayerMenu:
 
             code = lobby.get("code", "???")
             host = lobby.get("hostPlayer", "Unknown")
+            name = lobby.get("name", f"{host}'s Lobby")
             level = lobby.get("levelName", "Unknown Level")
             created = time_since_utc(lobby.get("createdAt", ""))
             count = len(lobby.get("lobbyPlayers", []))
+            max_players = lobby.get("maxPlayers", 4)
 
             PasswordProtected = lobby.get("passwordProtected", False)
             if PasswordProtected:
                 created += " [Requires Password]"
 
 
-
-            self.screen.blit(self.font_small.render(f"Code: {code} | Host: {host}",
+            self.screen.blit(self.font_small.render(f"{name} | Code: {code} | Host: {host}",
                                                     True, COLORS["text"]),
                              (lobby_rect.x + 15, lobby_rect.y + 5))
             self.screen.blit(self.font_small.render(f"Level: {level}", True, COLORS["text"]),
                              (lobby_rect.x + 15, lobby_rect.y + 30))
             self.screen.blit(self.font_small.render(f"Created: {created}", True, COLORS["text"]),
                              (lobby_rect.x + w * 0.15, lobby_rect.y + 5))
-            self.screen.blit(self.font_small.render(f"Players: {count}/4", True, COLORS["text"]),
+            self.screen.blit(self.font_small.render(f"Players: {count}/{max_players}", True, COLORS["text"]),
                              (lobby_rect.x + w * 0.15, lobby_rect.y + 30))
 
             btn = self.join_buttons[i]
@@ -302,11 +335,12 @@ class MultiplayerMenu:
         pygame.draw.rect(self.screen, (35, 38, 60), info_rect, border_radius=15)
         pygame.draw.rect(self.screen, COLORS["accent"], info_rect, 2, border_radius=15)
 
+        name = lobby.get("name", "Unnamed Lobby")
         code = lobby.get("code", "???")
         level = lobby.get("levelName", "Unknown Level")
         created = time_since_utc(lobby.get("createdAt", ""))
 
-        lines = [f"Code: {code}", f"Level: {level}", f"Created: {created}"]
+        lines = [f"Name: {name}",f"Code: {code}", f"Level: {level}", f"Created: {created}"]
         for i, line in enumerate(lines):
             surf = self.font_small.render(line, True, COLORS["text"])
             self.screen.blit(surf, (info_rect.x + 20,
@@ -358,17 +392,51 @@ class MultiplayerMenu:
                              (left_rect.x + 10, y),
                              (left_rect.right - 10, y))
 
-        toggle_size = int(h * 0.04)
-        toggle_rect = pygame.Rect(int(w * 0.09), int(h * 0.25), toggle_size, toggle_size)
+        name_label = self.font_small.render("Lobby Name:", True, COLORS["text"])
+        self.screen.blit(name_label, (int(w * 0.09), int(h * 0.21)))
+        name_rect = pygame.Rect(int(w * 0.09), int(h * 0.25), int(w * 0.25), int(h * 0.05))
+        pygame.draw.rect(self.screen, (45, 48, 75), name_rect, border_radius=8)
+        pygame.draw.rect(self.screen, COLORS["accent"], name_rect, 2, border_radius=8)
 
+        now = pygame.time.get_ticks()
+        if now - getattr(self, "name_timer", 0) > 500:
+            self.name_cursor_visible = not getattr(self, "name_cursor_visible", True)
+            self.name_timer = now
+
+        if not self.lobby_name:
+            if self.name_focused:
+                display_name = "|" if self.name_cursor_visible else ""
+            else:
+                display_name = "Enter lobby name..."
+        else:
+            display_name = self.lobby_name
+            if self.name_focused and self.name_cursor_visible:
+                display_name += "|"
+        name_surf = self.font_small.render(display_name, True, COLORS["text"])
+        self.screen.blit(name_surf, (name_rect.x + 10, name_rect.y + 10))
+        self.name_rect = name_rect
+
+        slider_label = self.font_small.render(f"Max Players: {self.max_players}", True, COLORS["text"])
+        self.screen.blit(slider_label, (int(w * 0.09), int(h * 0.33)))
+
+        slider_x = int(w * 0.09)
+        slider_y = int(h * 0.37)
+        slider_w = int(w * 0.25)
+        slider_h = 6
+        pygame.draw.rect(self.screen, (60, 65, 90), (slider_x, slider_y, slider_w, slider_h), border_radius=3)
+
+        knob_x = slider_x + int(((self.max_players - 2) / 8) * slider_w)
+        knob_rect = pygame.Rect(knob_x - 8, slider_y - 8, 16, 20)
+        pygame.draw.rect(self.screen, COLORS["accent"], knob_rect, border_radius=4)
+        self.slider_rect = pygame.Rect(slider_x, slider_y - 10, slider_w, 25)
+        self.knob_rect = knob_rect
+
+        toggle_size = int(h * 0.04)
+        toggle_rect = pygame.Rect(int(w * 0.09), int(h * 0.45), toggle_size, toggle_size)
         pygame.draw.rect(self.screen, (80, 80, 110), toggle_rect, border_radius=4)
         pygame.draw.rect(self.screen, COLORS["accent"], toggle_rect, 2, border_radius=4)
-
         label_surface = self.font_small.render("Password Protection", True, COLORS["text"])
         self.screen.blit(label_surface, (toggle_rect.right + 12, toggle_rect.y + 5))
-
-        self.btn_host.rect = pygame.Rect(int(w * 0.15), int(h * 0.80),
-                                        int(w * 0.25), int(h * 0.08))
 
         if self.require_password:
             pad = int(toggle_size * 0.2)
@@ -397,12 +465,11 @@ class MultiplayerMenu:
 
             txt = self.font_small.render(masked, True, COLORS["text"])
             self.screen.blit(txt, (pw_rect.x + 10, pw_rect.y + 10))
-
             self.password_rect = pw_rect
         else:
             self.password_rect = None
 
-        lvl_rect = pygame.Rect(int(w * 0.09), int(h * 0.35), int(w * 0.06), int(h * 0.04))
+        lvl_rect = pygame.Rect(int(w * 0.09), int(h * 0.55), int(w * 0.06), int(h * 0.04))
         pygame.draw.rect(self.screen, (45, 48, 75), lvl_rect, border_radius=8)
         pygame.draw.rect(self.screen, COLORS["accent"], lvl_rect, 2, border_radius=8)
         txt = self.font_small.render("Select Level", True, COLORS["text"])
@@ -413,7 +480,8 @@ class MultiplayerMenu:
         self.screen.blit(label, (lvl_rect.right + 20, lvl_rect.y + 15))
 
         pw_valid = (not self.require_password) or (1 <= len(self.host_password) <= 30)
-        self.btn_host.disabled = not (self.selected_level and pw_valid)
+        name_valid = 1 <= len(self.lobby_name) <= 30
+        self.btn_host.disabled = not (self.selected_level and pw_valid and name_valid)
 
     def _draw_password_popup(self, w, h):
         box_w, box_h = int(w * 0.4), int(h * 0.25)
@@ -562,13 +630,18 @@ class MultiplayerMenu:
         self.btn_back.handle_event(event)
         if event.type == pygame.MOUSEBUTTONDOWN:
             mx, my = event.pos
-            toggle_rect = pygame.Rect(int(self.screen.get_width() * 0.09), int(self.screen.get_height() * 0.25),
+            toggle_rect = pygame.Rect(int(self.screen.get_width() * 0.09), int(self.screen.get_height() * 0.45),
                                       int(self.screen.get_width() * 0.05), int(self.screen.get_height() * 0.05))
 
             if self.code_search_rect and self.code_search_rect.collidepoint(mx, my):
                 self.code_search_focused = True
             else:
                 self.code_search_focused = False
+
+            if self.name_rect and self.name_rect.collidepoint(mx, my):
+                self.name_focused = True
+            else:
+                self.name_focused = False
 
             if toggle_rect.collidepoint(mx, my):
                 self.require_password = not self.require_password
@@ -578,11 +651,23 @@ class MultiplayerMenu:
                 self.password_focused = True
             else:
                 self.password_focused = False
-            lvl_rect = pygame.Rect(int(self.screen.get_width() * 0.09), int(self.screen.get_height() * 0.35),
+            lvl_rect = pygame.Rect(int(self.screen.get_width() * 0.09), int(self.screen.get_height() * 0.55),
                                    int(self.screen.get_width() * 0.06), int(self.screen.get_height() * 0.04))
             if lvl_rect.collidepoint(mx, my):
                 self.show_level_popup = True
                 self._load_levels()
+
+        if event.type == pygame.MOUSEBUTTONDOWN and self.slider_rect.collidepoint(mx, my):
+            self.slider_dragging = True
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.slider_dragging = False
+
+        if event.type == pygame.MOUSEMOTION and self.slider_dragging:
+            mx, my = event.pos
+            rel_x = max(0, min(mx - self.slider_rect.x, self.slider_rect.width))
+            ratio = rel_x / self.slider_rect.width
+            new_value = 2 + round(ratio * 8)
+            self.max_players = max(2, min(10, new_value))
 
         if self.code_search_focused and event.type == pygame.KEYDOWN and not self.show_level_popup:
             if event.key == pygame.K_BACKSPACE:
@@ -604,6 +689,15 @@ class MultiplayerMenu:
                 ch = event.unicode
                 if len(ch) == 1 and ch.isprintable() and len(self.host_password) < 30:
                     self.host_password += ch
+
+        if self.name_focused and event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_BACKSPACE:
+                self.lobby_name = self.lobby_name[:-1]
+            else:
+                ch = event.unicode
+                if len(ch) == 1 and ch.isprintable() and len(self.lobby_name) < 30:
+                    self.lobby_name += ch
+
         self.btn_host.handle_event(event)
         for button in self.join_buttons:
             button.handle_event(event)
@@ -727,7 +821,13 @@ class MultiplayerMenu:
 
         password = self.host_password if self.require_password else None
 
-        lobby_data = request_helper.create_lobby(self.selected_level["id"], password)
+        lobby_data = request_helper.create_lobby(
+            self.selected_level["id"],
+            self.lobby_name.strip() or "Unnamed Lobby",
+            self.max_players,
+            password
+        )
+
         if lobby_data:
             self.refresh_lobbies()
             self.current_lobby = lobby_data

@@ -399,10 +399,10 @@ def get_lobbies():
         print("Failed to fetch lobbies:", e)
     return []
 
-def create_lobby(selected_level_id: int, password: str = None):
+def create_lobby(selected_level_id: int, name: str, max_players: int  ,password: str = None):
     debug_requests("create_lobby")
     headers = get_auth_headers()
-    params = {"selectedLevelId": selected_level_id}
+    params = {"selectedLevelId": selected_level_id, "name": name, "maxPlayers": max_players}
     if password:
         params["password"] = password
     try:

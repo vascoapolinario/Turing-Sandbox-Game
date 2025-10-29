@@ -22,6 +22,7 @@ class Environment:
     def __init__(self, screen, level=None, sandbox_alphabet=None, multiplayer=False, is_host=False, lobby_code=None):
 
         self.multiplayer = multiplayer
+        self.multiplayer_left = False
         self.is_host = is_host
         self.lobby_code = lobby_code
         self.player_name = request_helper.get_username() if multiplayer else None
@@ -80,7 +81,8 @@ class Environment:
             on_levels = self._levelmenu,
             on_clear=self._clear_space,
             on_quit=self._quit_game,
-            level=self.level
+            level=self.level,
+            multiplayer = self.multiplayer
         )
 
         self.save_menu = SaveMenu(
@@ -117,7 +119,7 @@ class Environment:
         if self.tutorial:
             self.tutorial.update(self.nodes, self.connections, self.test_complete)
         keys = pygame.key.get_pressed()
-        if not self.paused and not self.pause_menu.visible:
+        if not self.paused and not self.pause_menu.visible and not self.TuringMachine.input_active:
             self.grid.handle_input(dt, keys)
         if self.level.type != "sandbox":
             self.submit_button.update_rect_withscale(self.screen.get_size())
@@ -520,6 +522,10 @@ class Environment:
         self.TuringMachine.deserialize(data)
 
     def _return_to_menu(self):
+        if self.multiplayer:
+            request_helper.disconnect_signalr()
+            self.multiplayer_left = True
+
         self.back_to_menu = True
         self.paused = False
         self.pause_menu.hide()

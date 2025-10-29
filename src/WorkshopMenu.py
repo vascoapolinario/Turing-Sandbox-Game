@@ -25,10 +25,10 @@ def _workshop_path(name: str) -> str:
 
 class WorkshopMenu:
     def __init__(self, screen, on_close):
+        self._last_size = None
         self.screen = screen
         self.on_close = on_close
 
-        self.font_title = FontManager.get(32, bold=True)
         self.font_h3 = FontManager.get(28, bold=True)
         self.font_body = FontManager.get(24)
         self.font_tiny = FontManager.get(18)
@@ -74,13 +74,13 @@ class WorkshopMenu:
             self.items = []
 
     def _filter_items(self):
-        for i in self.items:
-            if i.get("author") == "TuringSandbox":
-                self.items.remove(i)
+        self.items = [i for i in self.items if i.get("author") != "TuringSandbox"]
+
         if self.active_tab == "All":
             self.filtered_items = self.items
         else:
             self.filtered_items = [i for i in self.items if i.get("type", "") == self.active_tab]
+
         self.filtered_items.sort(key=lambda x: x.get("name", "").lower())
 
 
@@ -169,6 +169,10 @@ class WorkshopMenu:
 
     def draw(self):
         w, h = self.screen.get_size()
+        if not hasattr(self, "_last_size") or (w, h) != self._last_size:
+            self._last_size = (w, h)
+            self._buttons_dirty = True
+
         self.screen.fill((20, 22, 35))
 
         for x in range(0, w, 40):
@@ -330,6 +334,14 @@ class WorkshopMenu:
         rating = item.get("rating", 0.0)
         rating_text = self.font_tiny.render(f"Rating: {rating:.1f}", True, (180, 180, 180))
         self.screen.blit(rating_text, (card_rect.x + pad_x, card_rect.y + pad_y))
+
+        subscribers = item.get("subscribers", 0)
+        sub_text = self.font_tiny.render(f"{subscribers} subscribers", True, (180, 180, 180))
+
+        sub_rect = sub_btn.rect
+        text_x = sub_rect.x + (sub_rect.width - sub_text.get_width()) // 2
+        text_y = sub_rect.y - sub_text.get_height() - 4
+        self.screen.blit(sub_text, (text_x, text_y))
 
         sub_btn.update_rect(self.screen.get_size())
         sub_btn.draw(self.screen)

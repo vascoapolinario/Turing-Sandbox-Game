@@ -69,7 +69,7 @@ LEVELS = [
     Level(
         name="Letters",
         type = "Starter",
-        description="Accept strings that contain the letter A followed by B.",
+        description="Accept strings where ALL A's come before ALL B's. Like ACCB but not BACA.",
         detailedDescription="Turing machine accepts strings where 'A' appears before 'B', such as 'AB', 'ACB', 'AAB', etc., while rejecting strings where 'B' appears before 'A' or where 'A' is absent, such as 'BA', 'BCA', 'CBA', etc.",
         alphabet=["A", "B", "C", "_"],
         objective="Accept if 'A' appears before 'B' in the string.",
