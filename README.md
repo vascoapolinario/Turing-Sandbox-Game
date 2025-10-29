@@ -1,7 +1,8 @@
 # Turing Sandbox Game
 A game made with python using pygame to build and simulate turing machines
 
-📦Latest version download release at: [https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/0.5.0.0](https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/0.5.0.0)
+📦Latest version download release at:
+- [https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/0.5.0.0](https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/0.5.0.0)
 
 
 This web version is very outdated, only recommended if running the exe is not possible.
