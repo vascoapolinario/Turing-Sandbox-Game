@@ -386,11 +386,12 @@ def delete_workshop_item(id):
         print("Failed to delete workshop item:", e)
     return False
 
-def get_lobbies():
+def get_lobbies(include_started: bool = False):
     debug_requests("get_lobbies")
     headers = get_auth_headers()
+    params = {"includeStarted": include_started}
     try:
-        r = requests.get(LOBBY_URL, headers=headers, verify=VERIFY_SSL, timeout=7)
+        r = requests.get(LOBBY_URL, headers=headers, params=params, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             return r.json()
         else:

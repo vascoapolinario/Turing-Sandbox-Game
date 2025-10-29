@@ -89,6 +89,8 @@ class LobbyMenu:
         )
         self.join_buttons = []
         self.current_lobby = None
+        self.hide_started = False
+        self.build_toggle_started_button()
         self.refresh_lobbies()
 
         self.show_password_popup = False
@@ -133,8 +135,26 @@ class LobbyMenu:
         self.in_environment = False
 
     def refresh_lobbies(self):
-        self.lobbies = request_helper.get_lobbies() or []
+        all_lobbies = request_helper.get_lobbies(include_started=True) or []
+
+        if self.hide_started:
+            self.lobbies = [l for l in all_lobbies if not l.get("hasStarted", False)]
+        else:
+            self.lobbies = all_lobbies
+
         self._build_join_buttons()
+
+    def build_toggle_started_button(self):
+        self.btn_toggle_started = Button("Hide Started Lobbies", (0.68, 0.14, 0.1, 0.05),
+                                         self.font_small, self._toggle_hide_started)
+
+
+    def _toggle_hide_started(self):
+        self.hide_started = not self.hide_started
+        self.btn_toggle_started.text = (
+            "Show All Lobbies" if self.hide_started else "Hide Started Lobbies"
+        )
+        self.refresh_lobbies()
 
     def _build_join_buttons(self):
         self.join_buttons.clear()
@@ -205,11 +225,19 @@ class LobbyMenu:
         self.screen.blit(title_surf, title_rect)
 
     def draw(self):
+        w, h = self.screen.get_size()
         if self.in_environment and self.environment:
             self.environment.draw()
+            now = pygame.time.get_ticks()
+            if self.message_text and now - self.message_time < self.message_duration:
+                msg_surf = self.font_small.render(self.message_text, True, COLORS["accent"])
+                msg_bg = msg_surf.get_rect(center=(w / 2, h * 0.95))
+                bg_rect = pygame.Rect(msg_bg.x - 15, msg_bg.y - 8, msg_bg.width + 30, msg_bg.height + 16)
+                pygame.draw.rect(self.screen, (25, 27, 45), bg_rect, border_radius=8)
+                pygame.draw.rect(self.screen, COLORS["accent"], bg_rect, 2, border_radius=8)
+                self.screen.blit(msg_surf, msg_surf.get_rect(center=bg_rect.center))
             return
         self.screen.fill((20, 22, 35))
-        w, h = self.screen.get_size()
         
         for x in range(0, w, 40):
             pygame.draw.line(self.screen, (30, 32, 50), (x, 0), (x, h))
@@ -293,6 +321,14 @@ class LobbyMenu:
                 item_h
             )
 
+            if i % 2 == 0:
+                bg_color = (45, 48, 70)
+            else:
+                bg_color = (55, 58, 80)
+
+            pygame.draw.rect(self.screen, bg_color, lobby_rect, border_radius=10)
+            pygame.draw.rect(self.screen, (25, 27, 45), lobby_rect, 1, border_radius=10)
+
             code = lobby.get("code", "???")
             host = lobby.get("hostPlayer", "Unknown")
             name = lobby.get("name", f"{host}'s Lobby")
@@ -306,21 +342,20 @@ class LobbyMenu:
                 created += " [Requires Password]"
 
 
-            self.screen.blit(self.font_small.render(f"{name} | Code: {code} | Host: {host}",
+            self.screen.blit(self.font_small.render(f"{name} | Code: {code} | Host: {host} | Created: {created}",
                                                     True, COLORS["text"]),
                              (lobby_rect.x + 15, lobby_rect.y + 5))
-            self.screen.blit(self.font_small.render(f"Level: {level}", True, COLORS["text"]),
+            self.screen.blit(self.font_small.render(f"Level: {level} | Players: {count}/{max_players}", True, COLORS["text"]),
                              (lobby_rect.x + 15, lobby_rect.y + 30))
-            self.screen.blit(self.font_small.render(f"Created: {created}", True, COLORS["text"]),
-                             (lobby_rect.x + w * 0.15, lobby_rect.y + 5))
-            self.screen.blit(self.font_small.render(f"Players: {count}/{max_players}", True, COLORS["text"]),
-                             (lobby_rect.x + w * 0.15, lobby_rect.y + 30))
 
             btn = self.join_buttons[i]
             btn.rect = pygame.Rect(lobby_rect.right - int(w * 0.07),
                                    lobby_rect.y + int(h * 0.015),
                                    int(w * 0.05), int(h * 0.045))
             btn.draw(self.screen)
+        self.btn_toggle_started.update_rect(self.screen.get_size())
+        self.btn_toggle_started.font = FontManager.get(int(20 * (h / 1080)))
+        self.btn_toggle_started.draw(self.screen)
         if len(self.lobbies) == 0:
             no_lobbies_text = self.font_medium.render("No lobbies available.", True, COLORS["text"])
             self.screen.blit(no_lobbies_text, no_lobbies_text.get_rect(center=panel_rect.center))
@@ -577,15 +612,20 @@ class LobbyMenu:
         if self.show_password_popup:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
-                    if request_helper.join_lobby(self.password_target_code, self.password_input):
-                        self.refresh_lobbies()
-                        self.current_lobby = next(
-                            (l for l in self.lobbies if l.get("code") == self.password_target_code), None)
-                        self.btn_leave = Button("Leave Lobby", (0.15, 0.85, 0.25, 0.07),
-                                                self.font_medium, self._leave_lobby)
-                        self._build_kick_buttons()
+                    target_lobby = next((l for l in self.lobbies if l.get("code") == self.password_target_code), None)
+                    if target_lobby["hasStarted"]:
+                        if request_helper.join_lobby(self.password_target_code, self.password_input):
+                            self.current_lobby = target_lobby
+                            self.enter_multiplayer_environment()
                     else:
-                        self._show_message("Incorrect password or failed join.")
+                        if request_helper.join_lobby(self.password_target_code, self.password_input):
+                            self.refresh_lobbies()
+                            self.current_lobby = target_lobby
+                            self.btn_leave = Button("Leave Lobby", (0.15, 0.85, 0.25, 0.07),
+                                                    self.font_medium, self._leave_lobby)
+                            self._build_kick_buttons()
+                        else:
+                            self._show_message("Incorrect password or failed join.")
                     self.show_password_popup = False
                 elif event.key == pygame.K_ESCAPE:
                     self.show_password_popup = False
@@ -710,30 +750,40 @@ class LobbyMenu:
             self.btn_leave.handle_event(event)
         if hasattr(self, "btn_start"):
             self.btn_start.handle_event(event)
+        self.btn_toggle_started.handle_event(event)
 
     def _on_lobby_created(self, data):
         self.refresh_lobbies()
         request_helper.trigger_event()
 
     def _on_player_joined(self, data):
-        self.refresh_lobbies()
+        if self.in_environment:
+            self._show_message("Player: " + data.get("playerName") + " has joined the lobby.")
+            if self.environment and self.environment.is_host:
+                self.environment.send_environment_state()
+        else:
+            self.refresh_lobbies()
 
-        code = data.get("lobbyCode")
-        if self.current_lobby and self.current_lobby.get("code") == code:
-            updated = next((l for l in self.lobbies if l.get("code") == code), None)
-            if updated:
-                self.current_lobby = updated
-                self._build_kick_buttons()
-        request_helper.trigger_event()
+            code = data.get("lobbyCode")
+            if self.current_lobby and self.current_lobby.get("code") == code:
+                updated = next((l for l in self.lobbies if l.get("code") == code), None)
+                if updated:
+                    self.current_lobby = updated
+                    self._build_kick_buttons()
+            request_helper.trigger_event()
 
     def _on_player_left(self, data):
-        self.refresh_lobbies()
-        if not any(l.get("code") == self.current_lobby.get("code") for l in self.lobbies):
-            self.current_lobby = None
-            request_helper.leave_signalr_group(data.get("lobbyCode"))
-            request_helper.trigger_event()
+        if self.in_environment:
+            self._show_message("Player: " + data.get("playerName") + " has left the lobby.")
             return
-        request_helper.trigger_event()
+        else:
+            self.refresh_lobbies()
+            if not any(l.get("code") == self.current_lobby.get("code") for l in self.lobbies):
+                self.current_lobby = None
+                request_helper.leave_signalr_group(data.get("lobbyCode"))
+                request_helper.trigger_event()
+                return
+            request_helper.trigger_event()
 
         code = data.get("lobbyCode")
         if self.current_lobby and self.current_lobby.get("code") == code:
@@ -752,20 +802,26 @@ class LobbyMenu:
 
         if request_helper.get_username() == kicked_name:
             if self.current_lobby.get("code") == code:
-                self._show_message("You were kicked from the lobby.")
-                request_helper.leave_signalr_group(code)
-                self.current_lobby = None
+                if self.in_environment:
+                    pass
+                else:
+                    self._show_message("You were kicked from the lobby.")
+                    request_helper.leave_signalr_group(code)
+                    self.current_lobby = None
             return
 
-        if self.current_lobby.get("code") == code:
-            self.refresh_lobbies()
-            updated = next((l for l in self.lobbies if l.get("code") == code), None)
-            if updated:
-                self.current_lobby = updated
-                self._build_kick_buttons()
-                if request_helper.get_username() != updated.get("hostPlayer"):
-                    self._show_message(f"{kicked_name} was kicked from the lobby.")
-        request_helper.trigger_event()
+        if self.in_environment:
+            self._show_message(f"{kicked_name} was kicked from the lobby.")
+        else:
+            if self.current_lobby.get("code") == code:
+                self.refresh_lobbies()
+                updated = next((l for l in self.lobbies if l.get("code") == code), None)
+                if updated:
+                    self.current_lobby = updated
+                    self._build_kick_buttons()
+                    if request_helper.get_username() != updated.get("hostPlayer"):
+                        self._show_message(f"{kicked_name} was kicked from the lobby.")
+            request_helper.trigger_event()
 
     def _on_lobby_deleted(self, data):
         self.refresh_lobbies()

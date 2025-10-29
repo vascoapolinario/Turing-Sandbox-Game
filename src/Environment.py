@@ -523,7 +523,11 @@ class Environment:
 
     def _return_to_menu(self):
         if self.multiplayer:
-            request_helper.disconnect_signalr()
+            try:
+                code = self.lobby_code
+                request_helper.leave_signalr_group(code)
+            except:
+                print("[Multiplayer] Failed to leave lobby gracefully")
             self.multiplayer_left = True
 
         self.back_to_menu = True
