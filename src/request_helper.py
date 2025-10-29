@@ -386,11 +386,12 @@ def delete_workshop_item(id):
         print("Failed to delete workshop item:", e)
     return False
 
-def get_lobbies():
+def get_lobbies(include_started: bool = False):
     debug_requests("get_lobbies")
     headers = get_auth_headers()
+    params = {"includeStarted": include_started}
     try:
-        r = requests.get(LOBBY_URL, headers=headers, verify=VERIFY_SSL, timeout=7)
+        r = requests.get(LOBBY_URL, headers=headers, params=params, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             return r.json()
         else:
@@ -399,10 +400,10 @@ def get_lobbies():
         print("Failed to fetch lobbies:", e)
     return []
 
-def create_lobby(selected_level_id: int, password: str = None):
+def create_lobby(selected_level_id: int, name: str, max_players: int  ,password: str = None):
     debug_requests("create_lobby")
     headers = get_auth_headers()
-    params = {"selectedLevelId": selected_level_id}
+    params = {"selectedLevelId": selected_level_id, "name": name, "maxPlayers": max_players}
     if password:
         params["password"] = password
     try:
@@ -437,7 +438,7 @@ hub_connection = None
 
 
 def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left=None, on_lobby_deleted=None,
-                    on_player_kicked=None):
+                    on_player_kicked=None, on_lobby_started=None, on_environment_synced=None, on_node_proposed=None, on_connection_proposed=None,on_delete_proposed=None):
     global hub_connection
 
     HUB_URL = LOBBY_URL.replace("/lobbies", "/hubs/lobby")
@@ -468,6 +469,16 @@ def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left
             hub_connection.on("LobbyDeleted", lambda args: on_lobby_deleted(args[0]))
         if on_player_kicked:
             hub_connection.on("PlayerKicked", lambda args: on_player_kicked(args[0]))
+        if on_lobby_started:
+            hub_connection.on("LobbyStarted", lambda args: on_lobby_started(args[0]))
+        if on_environment_synced:
+            hub_connection.on("EnvironmentSynced", lambda args: on_environment_synced(args[0]))
+        if on_node_proposed:
+            hub_connection.on("NodeProposed", lambda args: on_node_proposed(args[0]))
+        if on_connection_proposed:
+            hub_connection.on("ConnectionProposed", lambda args: on_connection_proposed(args[0]))
+        if on_delete_proposed:
+            hub_connection.on("DeleteProposed", lambda args: on_delete_proposed(args[0]))
 
         hub_connection.start()
         print("Connected to LobbyHub SignalR")
@@ -535,3 +546,51 @@ def disconnect_signalr():
             print("Error disconnecting SignalR:", e)
         finally:
             hub_connection = None
+
+def start_lobby(code):
+    try:
+        headers = get_auth_headers()
+        resp = requests.post(f"{LOBBY_URL}/{code}/start", headers=headers, verify=VERIFY_SSL)
+        print("Start lobby response:", resp.status_code, resp.text)
+        if resp.status_code != 200:
+            return False
+        return True
+    except Exception as e:
+        print(f"Error starting lobby: {e}")
+        return False
+
+
+def send_environment_state(lobby_code, state):
+    if hub_connection:
+        payload = {"lobbyCode": lobby_code, "state": state}
+        print(f"[SignalR] Sending environment state → {payload.keys()}")
+        hub_connection.send("SyncEnvironment", [payload])
+        print("[SignalR] Sent environment state")
+
+def propose_node(lobby_code, pos, is_end):
+    if hub_connection:
+        payload = {
+            "lobbyCode": lobby_code,
+            "pos": {"x": pos.x, "y": pos.y},
+            "isEnd": is_end
+        }
+        hub_connection.send("ProposeNode", [payload])
+        print(f"[SignalR] Sent node proposal: {payload}")
+
+def propose_connection(data):
+    if hub_connection:
+        hub_connection.send("ProposeConnection", [data])
+        print(f"[SignalR] Sent connection proposal → {data}")
+
+def propose_delete(lobby_code, target_data):
+    if hub_connection:
+        payload = {"lobbyCode": lobby_code, "target": target_data}
+        hub_connection.send("ProposeDelete", [payload])
+        print(f"[SignalR] Sent delete proposal → {payload.keys()}")
+
+import pygame
+UPDATE_EVENT = pygame.USEREVENT + 1
+
+def trigger_event():
+    pygame.event.post(pygame.event.Event(UPDATE_EVENT))
+

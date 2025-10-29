@@ -95,3 +95,22 @@ class Node:
         dx = pos[0] - self.pos.x
         dy = pos[1] - self.pos.y
         return (dx * dx + dy * dy) <= (self.radius ** 2)
+
+    @classmethod
+    def from_dict(cls, node_data):
+        node = cls(
+            pos=(node_data["x"], node_data["y"]),
+            is_end=node_data.get("is_end", False),
+            is_start=node_data.get("is_start", False)
+        )
+        node.id = node_data["id"]
+        return node
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "x": self.pos.x,
+            "y": self.pos.y,
+            "is_end": self.is_end,
+            "is_start": self.is_start
+        }

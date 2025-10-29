@@ -183,6 +183,7 @@ class MainMenu:
     def _on_auth(self, user):
         self.current_user = user
         self.AuthenticationPopup = None
+        self.pressed = "multiplayer"
 
     def quit_game(self):
         pygame.quit()

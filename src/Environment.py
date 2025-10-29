@@ -15,11 +15,21 @@ from TuringMachine import TuringMachine
 from PauseMenu import PauseMenu
 from TutorialHelper import TutorialHelper
 from FontManager import FontManager
+import request_helper
 
 
 class Environment:
-    def __init__(self, screen, level=None, sandbox_alphabet=None):
+    def __init__(self, screen, level=None, sandbox_alphabet=None, multiplayer=False, is_host=False, lobby_code=None):
+
+        self.multiplayer = multiplayer
+        self.multiplayer_left = False
+        self.is_host = is_host
+        self.lobby_code = lobby_code
+        self.player_name = request_helper.get_username() if multiplayer else None
         self.sandbox_alphabet = sandbox_alphabet or ["0", "1", "_"]
+        if level is not None:
+            if hasattr(level, "level_type") and not hasattr(level, "type"):
+                level.type = level.level_type
         self.level = level or Level(
             name="Sandbox",
             type="sandbox",
@@ -71,7 +81,8 @@ class Environment:
             on_levels = self._levelmenu,
             on_clear=self._clear_space,
             on_quit=self._quit_game,
-            level=self.level
+            level=self.level,
+            multiplayer = self.multiplayer
         )
 
         self.save_menu = SaveMenu(
@@ -108,7 +119,7 @@ class Environment:
         if self.tutorial:
             self.tutorial.update(self.nodes, self.connections, self.test_complete)
         keys = pygame.key.get_pressed()
-        if not self.paused and not self.pause_menu.visible:
+        if not self.paused and not self.pause_menu.visible and not self.TuringMachine.input_active:
             self.grid.handle_input(dt, keys)
         if self.level.type != "sandbox":
             self.submit_button.update_rect_withscale(self.screen.get_size())
@@ -192,12 +203,27 @@ class Environment:
                 if not self.toolbox.toggle_button.collidepoint(event.pos):
                     world_pos = self.grid.screen_to_world(event.pos)
                     pos = self.grid.snap(world_pos)
+
                     if self._get_node_at(pos, world_space=True):
                         return
-                    if len(self.nodes) == 0 or (any(n.is_start for n in self.nodes) == False and self.current_tool == "node"):
+
+                    if self.multiplayer:
+                        if self.is_host:
+                            new_node = Node(pos, is_end=(self.current_tool == "end_node"))
+                            if len(self.nodes) == 0 or not any(n.is_start for n in self.nodes):
+                                new_node.is_start = True
+                                new_node.id = 0
+                            self.nodes.append(new_node)
+                            self._sync_machine()
+                            self._broadcast_state()
+                        else:
+                            self._propose_node(pos, self.current_tool == "end_node")
+                        return
+
+                    if len(self.nodes) == 0 or (
+                            not any(n.is_start for n in self.nodes) and self.current_tool == "node"):
                         new_node = Node(pos, is_start=True, is_end=False)
                         new_node.id = 0
-                        self._sync_machine()
                     else:
                         new_node = Node(pos, is_end=(self.current_tool == "end_node"))
                     self.nodes.append(new_node)
@@ -281,17 +307,21 @@ class Environment:
 
         new_conn = self.connection_window.connection
         start = new_conn.start
+        end = new_conn.end
+
+        if self.multiplayer and not self.is_host:
+            self._propose_connection(start.id, end.id, read, write, move, read2, write2, move2)
+            self.connection_window = None
+            return
 
         new_read = set(read)
         new_read2 = set(read2 or [])
-
         for existing in self.connections:
             if existing is new_conn:
                 continue
             if existing.start == start:
                 existing_read = set(getattr(existing, "read", []))
                 existing_read2 = set(getattr(existing, "read2", []))
-
                 if not double_mode:
                     if new_read & existing_read:
                         self._cancel_connection_window(new_conn)
@@ -308,6 +338,9 @@ class Environment:
 
         self._sync_machine()
         self.connection_window = None
+
+        if self.multiplayer and self.is_host:
+            self._broadcast_state()
 
     def _cancel_connection_window(self, conn):
         if conn in self.connections:
@@ -340,14 +373,30 @@ class Environment:
     def _handle_delete(self, pos):
         node = self._get_node_at(pos)
         if node:
-            self._delete_node(node)
-            self._sync_machine()
+            if self.multiplayer:
+                if self.is_host:
+                    self._delete_node(node)
+                    self._sync_machine()
+                    self._broadcast_state()
+                else:
+                    self._propose_delete(node)
+            else:
+                self._delete_node(node)
+                self._sync_machine()
             return
 
         for conn in self.connections:
             if conn.is_clicked(pos, self.grid):
-                self.connections.remove(conn)
-                self._sync_machine()
+                if self.multiplayer:
+                    if self.is_host:
+                        self.connections.remove(conn)
+                        self._sync_machine()
+                        self._broadcast_state()
+                    else:
+                        self._propose_delete(conn)
+                else:
+                    self.connections.remove(conn)
+                    self._sync_machine()
                 return
 
     def _delete_node(self, node):
@@ -473,6 +522,14 @@ class Environment:
         self.TuringMachine.deserialize(data)
 
     def _return_to_menu(self):
+        if self.multiplayer:
+            try:
+                code = self.lobby_code
+                request_helper.leave_signalr_group(code)
+            except:
+                print("[Multiplayer] Failed to leave lobby gracefully")
+            self.multiplayer_left = True
+
         self.back_to_menu = True
         self.paused = False
         self.pause_menu.hide()
@@ -524,3 +581,177 @@ class Environment:
         self.levelselection = True
         self.paused = False
         self.pause_menu.hide()
+
+    def _broadcast_state(self):
+        if self.multiplayer and self.is_host:
+            state = self.serialize_state()
+            request_helper.send_environment_state(self.lobby_code, state)
+
+    def _propose_node(self, pos, is_end):
+        if self.multiplayer and not self.is_host:
+            request_helper.propose_node(self.lobby_code, pos, is_end)
+
+    def _propose_connection(self, start_id, end_id, read, write, move, read2=None, write2=None, move2=None):
+        if self.multiplayer and not self.is_host:
+            def clean(value):
+                if value is None:
+                    return []
+                if isinstance(value, (str, int)):
+                    return [str(value)]
+                if isinstance(value, (list, tuple, set)):
+                    return [str(v) for v in value if v is not None]
+                return [str(value)]
+
+            payload = {
+                "lobbyCode": self.lobby_code,
+                "startId": int(start_id),
+                "endId": int(end_id),
+                "read": clean(read),
+                "write": clean(write),
+                "move": clean(move),
+                "read2": clean(read2),
+                "write2": clean(write2),
+                "move2": clean(move2),
+            }
+
+            print(f"[SignalR] Sending connection proposal → {payload}")
+            request_helper.propose_connection(payload)
+
+    def _propose_delete(self, target):
+        if self.multiplayer and not self.is_host:
+            if hasattr(target, "start") and hasattr(target, "end"):
+                target_data = {
+                    "type": "connection",
+                    "start": {"x": target.start.pos.x, "y": target.start.pos.y},
+                    "end": {"x": target.end.pos.x, "y": target.end.pos.y},
+                }
+            elif hasattr(target, "pos"):
+                target_data = {
+                    "type": "node",
+                    "x": target.pos.x,
+                    "y": target.pos.y,
+                }
+            else:
+                print("[Delete] Unknown target, skipping proposal")
+                return
+
+            print(f"[Delete] Proposing → {target_data}")
+            request_helper.propose_delete(self.lobby_code, target_data)
+
+    def serialize_state(self):
+        return {
+            "nodes": [n.to_dict() for n in self.nodes],
+            "connections": [c.to_dict() for c in self.connections]
+        }
+
+    def apply_remote_state(self, state):
+        if not self.is_host:
+            Node._id_counter = 0
+            self.nodes.clear()
+            self.connections.clear()
+
+            for node_data in state.get("nodes", []):
+                node = Node.from_dict(node_data)
+                self.nodes.append(node)
+
+            for conn_data in state.get("connections", []):
+                conn = Connection.from_dict(conn_data, self.nodes)
+                self.connections.append(conn)
+
+            self._sync_machine()
+        print(state)
+
+    def create_node_from_proposal(self, x, y, is_end):
+        pos = pygame.Vector2(x, y)
+        snapped_pos = self.grid.snap(pos)
+
+        existing = self._get_node_at(snapped_pos, world_space=True)
+        if existing:
+            print(f"[Host] Ignored proposed node at ({x}, {y}) — already occupied")
+            return
+
+        new_node = Node(snapped_pos, is_end=is_end)
+
+        # Optionally ensure we have a start node
+        if len(self.nodes) == 0 or not any(n.is_start for n in self.nodes):
+            new_node.is_start = True
+            new_node.id = 0
+
+        self.nodes.append(new_node)
+        self._sync_machine()
+        self._broadcast_state()
+        print(f"[Host] Added proposed node at ({snapped_pos.x}, {snapped_pos.y}) and broadcasted")
+
+    def create_connection_from_proposal(self, data):
+        start_id = data.get("startId")
+        end_id = data.get("endId")
+        start = next((n for n in self.nodes if n.id == start_id), None)
+        end = next((n for n in self.nodes if n.id == end_id), None)
+        if not start or not end:
+            print(f"[Host] Invalid connection proposal ({start_id}->{end_id})")
+            return
+
+        def normalize_list(value):
+            if value is None:
+                return []
+            if isinstance(value, list):
+                if len(value) == 1 and isinstance(value[0], list):
+                    return normalize_list(value[0])
+                return [str(v) for v in value]
+            if isinstance(value, (str, int, float)):
+                return [str(value)]
+            return []
+
+        def normalize_single(value):
+            if value is None:
+                return ""
+            if isinstance(value, list):
+                if len(value) == 0:
+                    return ""
+                if isinstance(value[0], list):
+                    return normalize_single(value[0])
+                return str(value[0])
+            return str(value)
+
+        read = normalize_list(data.get("read"))
+        read2 = normalize_list(data.get("read2"))
+
+        write = normalize_single(data.get("write"))
+        move = normalize_single(data.get("move"))
+        write2 = normalize_single(data.get("write2"))
+        move2 = normalize_single(data.get("move2"))
+
+        conn = Connection(start, end)
+        conn.update_logic(read, write, move, read2, write2, move2)
+
+        self.connections.append(conn)
+        self._sync_machine()
+        self._broadcast_state()
+        print(f"[Host] Added connection {start.id}->{end.id} and broadcasted")
+
+    def apply_delete_proposal(self, target_data):
+        print("[Host] Applying delete proposal:", target_data)
+        target_type = target_data.get("type")
+        if target_type == "node":
+            x = target_data.get("x")
+            y = target_data.get("y")
+            if x is None or y is None:
+                return
+            pos = pygame.Vector2(x, y)
+            node = self._get_node_at(pos, world_space=True)
+            if node:
+                self._delete_node(node)
+                print(f"[Host] Deleted node near ({x}, {y})")
+
+        elif target_type == "connection":
+            start_pos = pygame.Vector2(target_data["start"]["x"], target_data["start"]["y"])
+            end_pos = pygame.Vector2(target_data["end"]["x"], target_data["end"]["y"])
+            for conn in list(self.connections):
+                if (conn.start.pos - start_pos).length() < 1e-3 and (conn.end.pos - end_pos).length() < 1e-3:
+                    self.connections.remove(conn)
+                    print(f"[Host] Deleted connection between ({start_pos}) and ({end_pos})")
+                    break
+
+        self._sync_machine()
+        self._broadcast_state()
+        print("[Host] Applied delete proposal and broadcasted")

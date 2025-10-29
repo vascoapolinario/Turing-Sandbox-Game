@@ -73,6 +73,9 @@ class SettingsMenu:
                 self.input_text = ""
             elif event.unicode.isprintable() and len(self.input_text) < 1:
                 self.input_text = event.unicode
+        elif event.type == pygame.KEYDOWN and not self.input_active:
+            if event.key == pygame.K_ESCAPE:
+                self._close()
 
     def draw(self):
         self.screen.fill((20, 22, 35))

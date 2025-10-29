@@ -16,8 +16,9 @@ import request_helper
 
 
 class LevelSelectMenu:
-    def __init__(self, screen):
+    def __init__(self, screen, on_close=None):
         self.screen = screen
+        self.font_title = pygame.font.SysFont("futura", 60, bold=True)
         self.font_large = pygame.font.SysFont("futura", 40, bold=True)
         self.font_medium = pygame.font.SysFont("futura", 28)
         self.font_small = pygame.font.SysFont("futura", 20)
@@ -31,6 +32,7 @@ class LevelSelectMenu:
         self.type_buttons = []
         self.auth_popup = None
         self.current_user = None
+        self.on_close = on_close
 
 
 
@@ -49,9 +51,16 @@ class LevelSelectMenu:
 
         self.resetAllProgress_button = Button(
             "Reset All Progress",
-            (0.05, 0.04, 0.22, 0.08),
+            (0.75, 0.04, 0.22, 0.08),
             self.font_medium,
             lambda: (self.progress.clear(), delete_progress(), self._build_type_buttons(), self._build_level_buttons())
+        )
+
+        self.back_button = Button(
+            "Back to Main Menu",
+            (0.05, 0.04, 0.22, 0.08),
+            self.font_medium,
+            self.on_close
         )
 
         self.new_level_button = Button(
@@ -181,11 +190,31 @@ class LevelSelectMenu:
         self.play_button.handle_event(event)
         self.resetAllProgress_button.handle_event(event)
         self.workshop_button.handle_event(event)
+        self.back_button.handle_event(event)
 
     def update(self):
         w, h = self.screen.get_size()
         for btn in self.type_buttons + self.level_buttons + [self.play_button]:
             btn.update_rect((w, h))
+
+    def _draw_title_box(self, text, w, h):
+        title_surf = self.font_title.render(text, True, COLORS["text"])
+        title_rect = title_surf.get_rect(center=(w / 2, h * 0.05))
+
+        pad_x = 40
+        pad_y = 20
+
+        box_rect = pygame.Rect(
+            title_rect.x - pad_x // 2,
+            title_rect.y - pad_y // 2,
+            title_rect.width + pad_x,
+            title_rect.height + pad_y
+        )
+
+        pygame.draw.rect(self.screen, (50, 70, 110), box_rect, border_radius=15)
+        pygame.draw.rect(self.screen, COLORS["accent"], box_rect, 3, border_radius=15)
+
+        self.screen.blit(title_surf, title_rect)
 
     def draw(self):
         w, h = self.screen.get_size()
@@ -200,8 +229,7 @@ class LevelSelectMenu:
             pygame.draw.line(self.screen, glow_color, (0, y), (w, y))
 
 
-        title = self.font_large.render("Select Level", True, COLORS["accent"])
-        self.screen.blit(title, (w * 0.5 - title.get_width() // 2, 40))
+        self._draw_title_box("Select Level", w, h)
 
 
         left_rect = pygame.Rect(0, 0, w * 0.3, h)
@@ -301,6 +329,8 @@ class LevelSelectMenu:
         self.new_level_button.draw(self.screen)
         self.workshop_button.update_rect((w, h))
         self.workshop_button.draw(self.screen)
+        self.back_button.update_rect((w, h))
+        self.back_button.draw(self.screen)
 
         if self.new_level_popup:
             self.new_level_popup.draw()
@@ -456,4 +486,5 @@ class LevelSelectMenu:
         self.auth_popup = None
         print(f"Authenticated as {user['username']}")
         self._open_workshop_menu()
+
 
