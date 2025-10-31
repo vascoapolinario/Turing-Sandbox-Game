@@ -4,7 +4,7 @@ from FontManager import FontManager
 
 
 class TuringMachine:
-    def __init__(self, screen, nodes, connections, tape, tape2=None, double_tape=False):
+    def __init__(self, screen, nodes, connections, tape, tape2=None, double_tape=False, alphabet = None):
         self.screen = screen
         self.nodes = nodes
         self.connections = connections
@@ -14,7 +14,7 @@ class TuringMachine:
 
         self.input_active = False
         self.input_text = ""
-        self.alphabet = ['0', '1', '_']
+        self.alphabet = alphabet if alphabet is not None else ['_']
 
         self.current_node = next((n for n in nodes if getattr(n, "is_start", False)), None)
         if self.current_node:

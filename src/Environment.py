@@ -40,7 +40,6 @@ class Environment:
             solution={},
             mode="accept",
             double_tape=True
-
         )
         if self.level.type == "sandbox":
             self.level.alphabet = self.sandbox_alphabet
@@ -60,7 +59,7 @@ class Environment:
         self.nodes = []
         Node._id_counter = 0
         self.connections = []
-        self.TuringMachine = TuringMachine(screen, self.nodes, self.connections, self.tape, self.tape2, self.level.double_tape)
+        self.TuringMachine = TuringMachine(screen, self.nodes, self.connections, self.tape, self.tape2, self.level.double_tape, alphabet=self.level.alphabet)
 
         self.current_tool = None
         self.connecting_from = None

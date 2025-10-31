@@ -67,7 +67,7 @@ class SettingsMenu:
             if event.key == pygame.K_RETURN:
                 symbol = self.input_text.strip()
                 if len(symbol) == 1 and symbol not in self.sandbox_alphabet:
-                    self.sandbox_alphabet.insert(len(self.sandbox_alphabet) - 1, symbol)
+                    self.sandbox_alphabet.insert(len(self.sandbox_alphabet) - 1, symbol.upper())
                 self.input_text = ""
             elif event.key == pygame.K_BACKSPACE:
                 self.input_text = ""
