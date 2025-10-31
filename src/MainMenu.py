@@ -181,9 +181,13 @@ class MainMenu:
             self.pressed = "multiplayer"
 
     def _on_auth(self, user):
-        self.current_user = user
-        self.AuthenticationPopup = None
-        self.pressed = "multiplayer"
+        if request_helper.verify_authentication():
+            self.current_user = request_helper.get_user()
+            self.pressed = "multiplayer"
+            self.AuthenticationPopup = None
+            self.pressed = "multiplayer"
+        else:
+            self.AuthenticationPopup = None
 
     def quit_game(self):
         pygame.quit()

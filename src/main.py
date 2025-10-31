@@ -105,7 +105,7 @@ def main():
 
 
             elif menu.pressed == "settings":
-                settings_menu = SettingsMenu(screen, on_close=lambda: setattr(menu, "pressed", ""))
+                settings_menu = SettingsMenu(screen, on_close=lambda: setattr(menu, "pressed", ""), sandbox_alphabet=sandbox_alphabet)
                 state = "settings"
 
             elif menu.pressed == "multiplayer":
@@ -127,6 +127,8 @@ def main():
         elif state == "settings":
             settings_menu.update(dt)
             settings_menu.draw()
+            if settings_menu.current_user is None:
+                menu.current_user = None
 
             if menu.pressed == "":
                 sandbox_alphabet = settings_menu.sandbox_alphabet

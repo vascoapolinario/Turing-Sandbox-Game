@@ -915,6 +915,9 @@ class LobbyMenu:
         if not self.current_lobby:
             return
 
+        if len(self.current_lobby.get("lobbyPlayers", [])) < 2:
+            self._show_message("At least 2 players are required to start the lobby.")
+            return
         code = self.current_lobby.get("code")
         success = request_helper.start_lobby(code)
 

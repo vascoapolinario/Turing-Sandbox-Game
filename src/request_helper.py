@@ -91,8 +91,7 @@ def verify_authentication():
             verified = r.json()
             return verified.get("valid", False)
         elif r.status_code == 429:
-            print("Rate limited while verifying token; assuming valid.")
-            return True
+            return False
         else:
             print(f"Token invalid (status {r.status_code}), clearing session.")
             clear_session()

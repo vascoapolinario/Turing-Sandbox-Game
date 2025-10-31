@@ -25,6 +25,7 @@ class NewLevelPopup:
         }
         self.examples_per_page = 2
         self.pages = {k: 0 for k in self.examples.keys()}
+        self.MAX_CHARS = 30
 
         self.add_buttons = {
             "correct_examples": Button("+", (0, 0, 0, 0), self.small_font,
@@ -81,7 +82,7 @@ class NewLevelPopup:
                     self.alphabet_input = ""
                 elif event.key == pygame.K_BACKSPACE:
                     self.alphabet_input = self.alphabet_input[:-1]
-                else:
+                elif len(self.alphabet_input) < 1 and event.unicode.isprintable():
                     self.alphabet_input += event.unicode
                 return
 
@@ -95,23 +96,29 @@ class NewLevelPopup:
                         self.active_field = None
                     elif event.key == pygame.K_BACKSPACE:
                         self.examples[grp][real_idx] = self.examples[grp][real_idx][:-1]
-                    else:
-                        self.examples[grp][real_idx] += event.unicode
+                    elif len(self.examples[grp][real_idx]) < self.MAX_CHARS and event.unicode.isprintable():
+                        if event.unicode in self.alphabet_list:
+                            self.examples[grp][real_idx] += event.unicode
+                        else:
+                            self.warning_text = f"Character '{event.unicode}' not in alphabet!"
                 else:
                     current = list(self.examples["transform_tests"][real_idx])
                     if event.key == pygame.K_RETURN:
                         self.active_field = None
                     elif event.key == pygame.K_BACKSPACE:
                         current[0 if which == "input" else 1] = current[0 if which == "input" else 1][:-1]
-                    else:
-                        current[0 if which == "input" else 1] += event.unicode
+                    elif len(current[0 if which == "input" else 1]) < self.MAX_CHARS and event.unicode.isprintable():
+                        if event.unicode in self.alphabet_list:
+                            current[0 if which == "input" else 1] += event.unicode
+                        else:
+                            self.warning_text = f"Character '{event.unicode}' not in alphabet!"
                     self.examples["transform_tests"][real_idx] = tuple(current)
             else:
                 if event.key == pygame.K_RETURN:
                     self.active_field = None
                 elif event.key == pygame.K_BACKSPACE:
                     self.inputs[key] = self.inputs[key][:-1]
-                else:
+                elif len(self.inputs[key]) < self.MAX_CHARS and event.unicode.isprintable():
                     self.inputs[key] += event.unicode
 
         for b in getattr(self, "all_buttons", []):

@@ -6,7 +6,7 @@ from AuthenticationPopup import AuthenticationPopup
 
 
 class SettingsMenu:
-    def __init__(self, screen, on_close):
+    def __init__(self, screen, on_close, sandbox_alphabet = None):
         self.screen = screen
         self.on_close = on_close
         self.font_title = FontManager.get(64, bold=True)
@@ -29,7 +29,7 @@ class SettingsMenu:
         self.btn_login = Button("Login", (0.0, 0.0, 0.2, 0.06), self.font_small, self._open_login)
         self.btn_logout = Button("Logout", (0.0, 0.0, 0.2, 0.06), self.font_small, self._logout)
 
-        self.sandbox_alphabet = ["0", "1", "_"]
+        self.sandbox_alphabet = sandbox_alphabet if sandbox_alphabet is not None else ['0', '1', '_']
         self.input_active = False
         self.input_text = ""
 
@@ -77,6 +77,28 @@ class SettingsMenu:
             if event.key == pygame.K_ESCAPE:
                 self._close()
 
+
+    def _draw_title_box(self, text, w, h):
+        title_surf = self.font_title.render(text, True, COLORS["text"])
+        title_rect = title_surf.get_rect(center=(w / 2, h * 0.05))
+
+        pad_x = 40
+        pad_y = 20
+
+        box_rect = pygame.Rect(
+            title_rect.x - pad_x // 2,
+            title_rect.y - pad_y // 2,
+            title_rect.width + pad_x,
+            title_rect.height + pad_y
+        )
+
+        pygame.draw.rect(self.screen, (50, 70, 110), box_rect, border_radius=15)
+        pygame.draw.rect(self.screen, COLORS["accent"], box_rect, 3, border_radius=15)
+
+        self.screen.blit(title_surf, title_rect)
+        self._draw_tape_effect(title_rect)
+
+
     def draw(self):
         self.screen.fill((20, 22, 35))
         w, h = self.screen.get_size()
@@ -86,11 +108,8 @@ class SettingsMenu:
         for y in range(0, h, 40):
             pygame.draw.line(self.screen, (30, 34, 55), (0, y), (w, y))
 
-        title_text = self.font_title.render("Settings", True, COLORS["accent"])
-        title_rect = title_text.get_rect(center=(w / 2, h * 0.15))
-        self.screen.blit(title_text, title_rect)
+        self._draw_title_box("Settings", w, h)
 
-        self._draw_tape_effect(title_rect)
 
         panel_rect = pygame.Rect(int(w * 0.15), int(h * 0.25), int(w * 0.7), int(h * 0.6))
         pygame.draw.rect(self.screen, (35, 38, 60), panel_rect, border_radius=15)
