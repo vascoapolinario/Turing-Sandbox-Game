@@ -11,6 +11,10 @@ class ConnectionWindow:
         self.on_save = on_save
         self.on_cancel = on_cancel
         self.double_tape = double_tape
+        self.page_index = 0
+        self.symbols_per_page = 4
+        self._read_arrows_tape1 = (None, None)
+        self._read_arrows_tape2 = (None, None)
 
         self.font = FontManager.get(24)
 
@@ -23,7 +27,7 @@ class ConnectionWindow:
         self.selected_move2 = "S"
 
         self.width = 800 if double_tape else 600
-        self.height = 420
+        self.height = 460
         self.rect = pygame.Rect(
             screen.get_width() // 2 - self.width // 2,
             screen.get_height() // 2 - self.height // 2,
@@ -48,7 +52,9 @@ class ConnectionWindow:
             for tape in (1, 2 if self.double_tape else 1):
                 offset = 0 if tape == 1 else self.width // 2
                 for section in ("read", "write"):
-                    for i, sym in enumerate(self.symbols):
+                    start = self.page_index * self.symbols_per_page
+                    end = start + self.symbols_per_page
+                    for i, sym in enumerate(self.symbols[start:end]):
                         rect = self._symbol_rect(i, section, offset)
                         if rect.collidepoint(mx, my):
                             self.hovered_symbol = (tape, section, sym)
@@ -71,13 +77,26 @@ class ConnectionWindow:
                 self.on_cancel()
                 return True
 
+            for arrows in (self._read_arrows_tape1, self._read_arrows_tape2):
+                left_arrow, right_arrow = arrows
+                if left_arrow and left_arrow.collidepoint(event.pos) and self.page_index > 0:
+                    self.page_index -= 1
+                    return True
+                if right_arrow and right_arrow.collidepoint(event.pos) and (
+                        (self.page_index + 1) * self.symbols_per_page < len(self.symbols)
+                ):
+                    self.page_index += 1
+                    return True
+
             for tape in (1, 2 if self.double_tape else 1):
                 offset = 0 if tape == 1 else self.width // 2
                 reads = self.selected_read1 if tape == 1 else self.selected_read2
                 write = "selected_write1" if tape == 1 else "selected_write2"
                 move = "selected_move1" if tape == 1 else "selected_move2"
 
-                for i, sym in enumerate(self.symbols):
+                start = self.page_index * self.symbols_per_page
+                end = start + self.symbols_per_page
+                for i, sym in enumerate(self.symbols[start:end]):
                     rect = self._symbol_rect(i, "read", offset)
                     if rect.collidepoint(event.pos):
                         if sym in reads:
@@ -86,7 +105,7 @@ class ConnectionWindow:
                             reads.add(sym)
                         return True
 
-                for i, sym in enumerate(self.symbols):
+                for i, sym in enumerate(self.symbols[start:end]):
                     rect = self._symbol_rect(i, "write", offset)
                     if rect.collidepoint(event.pos):
                         if getattr(self, write) == sym:
@@ -140,14 +159,41 @@ class ConnectionWindow:
 
         rlabel = self.font.render("Read Symbols:", True, COLORS["text"])
         self.screen.blit(rlabel, (self.rect.x + offset + 40, self.rect.y + 70))
-        for i, sym in enumerate(self.symbols):
+        start = self.page_index * self.symbols_per_page
+        end = start + self.symbols_per_page
+        visible_symbols = self.symbols[start:end]
+
+        for i, sym in enumerate(visible_symbols):
             rect = self._symbol_rect(i, "read", offset)
             hovered = self.hovered_symbol == (tape_id, "read", sym)
             self._draw_option(rect, sym, sym in reads, hovered)
 
+        show_arrows = len(self.symbols) > self.symbols_per_page
+        left_arrow = right_arrow = None
+        if show_arrows:
+            left_arrow = pygame.Rect(self.rect.x + offset, self.rect.y + 100, 30, 30)
+            right_arrow = pygame.Rect(self.rect.x + offset + 40 + self.symbols_per_page * 70, self.rect.y + 100, 30, 30)
+            arrow_font = FontManager.get(20)
+            if self.page_index > 0:
+                pygame.draw.rect(self.screen, (90, 100, 130), left_arrow, border_radius=6)
+                pygame.draw.rect(self.screen, COLORS["text"], left_arrow, 2, border_radius=6)
+                la = arrow_font.render("<", True, (255, 255, 255))
+                self.screen.blit(la,
+                                 (left_arrow.centerx - la.get_width() // 2, left_arrow.centery - la.get_height() // 2))
+            if (self.page_index + 1) * self.symbols_per_page < len(self.symbols):
+                pygame.draw.rect(self.screen, (90, 100, 130), right_arrow, border_radius=6)
+                pygame.draw.rect(self.screen, COLORS["text"], right_arrow, 2, border_radius=6)
+                ra = arrow_font.render(">", True, (255, 255, 255))
+                self.screen.blit(ra, (
+                right_arrow.centerx - ra.get_width() // 2, right_arrow.centery - ra.get_height() // 2))
+        if tape_id == 1:
+            self._read_arrows_tape1 = (left_arrow, right_arrow)
+        else:
+            self._read_arrows_tape2 = (left_arrow, right_arrow)
+
         wlabel = self.font.render("Write Symbol:", True, COLORS["text"])
         self.screen.blit(wlabel, (self.rect.x + offset + 40, self.rect.y + 170))
-        for i, sym in enumerate(self.symbols):
+        for i, sym in enumerate(visible_symbols):
             rect = self._symbol_rect(i, "write", offset)
             hovered = self.hovered_symbol == (tape_id, "write", sym)
             self._draw_option(rect, sym, sym == write, hovered)

@@ -29,7 +29,6 @@ VERIFY_SSL = True
 
 
 
-
 def save_session(token: str, user: dict):
     os.makedirs(os.path.dirname(SESSION_PATH), exist_ok=True)
     with open(SESSION_PATH, "w", encoding="utf-8") as f:
@@ -450,11 +449,6 @@ def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left
         hub_connection = (
             HubConnectionBuilder()
             .with_url(f"{HUB_URL}{query_str}", options={"verify_ssl": VERIFY_SSL})
-            .with_automatic_reconnect({
-                "type": "raw",
-                "keep_alive_interval": 10,
-                "reconnect_interval": 5
-            })
             .build()
         )
 

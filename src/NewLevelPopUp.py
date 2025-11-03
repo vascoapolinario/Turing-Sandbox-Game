@@ -25,7 +25,7 @@ class NewLevelPopup:
         }
         self.examples_per_page = 2
         self.pages = {k: 0 for k in self.examples.keys()}
-        self.MAX_CHARS = 30
+        self.MAX_CHARS = 50
 
         self.add_buttons = {
             "correct_examples": Button("+", (0, 0, 0, 0), self.small_font,
@@ -96,7 +96,7 @@ class NewLevelPopup:
                         self.active_field = None
                     elif event.key == pygame.K_BACKSPACE:
                         self.examples[grp][real_idx] = self.examples[grp][real_idx][:-1]
-                    elif len(self.examples[grp][real_idx]) < self.MAX_CHARS and event.unicode.isprintable():
+                    elif  event.unicode.isprintable():
                         if event.unicode in self.alphabet_list:
                             self.examples[grp][real_idx] += event.unicode
                         else:
@@ -107,7 +107,7 @@ class NewLevelPopup:
                         self.active_field = None
                     elif event.key == pygame.K_BACKSPACE:
                         current[0 if which == "input" else 1] = current[0 if which == "input" else 1][:-1]
-                    elif len(current[0 if which == "input" else 1]) < self.MAX_CHARS and event.unicode.isprintable():
+                    elif event.unicode.isprintable():
                         if event.unicode in self.alphabet_list:
                             current[0 if which == "input" else 1] += event.unicode
                         else:

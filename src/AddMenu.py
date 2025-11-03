@@ -117,7 +117,7 @@ class AddMenu:
             elif event.key == pygame.K_BACKSPACE:
                 self.description_input = self.description_input[:-1]
             else:
-                if event.unicode.isprintable() and len(self.description_input) < 60:
+                if event.unicode.isprintable() and len(self.description_input) < 120:
                     self.description_input += event.unicode
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self.on_close()

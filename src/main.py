@@ -157,8 +157,11 @@ def main():
                 state = "main_menu"
                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
             elif env.levelselection:
-                level_menu = LevelSelectMenu(screen)
-                env = None
+                level_menu = LevelSelectMenu(
+                    screen,
+                    on_close=lambda: setattr(menu, "pressed", "")
+                )
+                menu.pressed = "levels"
                 state = "level_select"
                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
         if discord_available:
