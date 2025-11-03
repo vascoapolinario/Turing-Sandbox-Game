@@ -436,7 +436,7 @@ hub_connection = None
 
 
 def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left=None, on_lobby_deleted=None,
-                    on_player_kicked=None, on_lobby_started=None, on_environment_synced=None, on_node_proposed=None, on_connection_proposed=None,on_delete_proposed=None, on_chat_message_receieved=None):
+                    on_player_kicked=None, on_lobby_started=None, on_environment_synced=None, on_node_proposed=None, on_connection_proposed=None,on_delete_proposed=None, on_chat_message_received=None):
     global hub_connection
 
     HUB_URL = LOBBY_URL.replace("/lobbies", "/hubs/lobby")
@@ -472,8 +472,8 @@ def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left
             hub_connection.on("ConnectionProposed", lambda args: on_connection_proposed(args[0]))
         if on_delete_proposed:
             hub_connection.on("DeleteProposed", lambda args: on_delete_proposed(args[0]))
-        if on_chat_message_receieved:
-            hub_connection.on("ChatMessageReceived", lambda args: on_chat_message_receieved(args[0]))
+        if on_chat_message_received:
+            hub_connection.on("ChatMessageReceived", lambda args: on_chat_message_received(args[0]))
 
         hub_connection.start()
         print("Connected to LobbyHub SignalR")

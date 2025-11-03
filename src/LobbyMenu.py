@@ -88,7 +88,7 @@ class LobbyMenu:
             on_node_proposed=self.on_node_proposed,
             on_connection_proposed=self.on_connection_proposed,
             on_delete_proposed=self.on_delete_proposed,
-            on_chat_message_receieved=self.on_message_received
+            on_chat_message_received=self.on_chat_message_received
         )
         self.join_buttons = []
         self.current_lobby = None
@@ -667,8 +667,10 @@ class LobbyMenu:
                             self.enter_multiplayer_environment()
                     else:
                         if request_helper.join_lobby(self.password_target_code, self.password_input):
+                            request_helper.join_signalr_group(self.password_target_code)
                             self.refresh_lobbies()
-                            self.current_lobby = target_lobby
+                            updated = next((l for l in self.lobbies if l.get("code") == self.password_target_code), None)
+                            self.current_lobby = updated
                             self.btn_leave = Button("Leave Lobby", (0.15, 0.85, 0.25, 0.07),
                                                     self.font_medium, self._leave_lobby)
                             self._build_kick_buttons()
@@ -1124,7 +1126,8 @@ class LobbyMenu:
         self.environment.apply_delete_proposal(target)
         request_helper.trigger_event()
 
-    def on_message_received(self, data):
+    def on_chat_message_received(self, data):
+        print("received chat message")
         code = data.get("lobbyCode")
         if not self.current_lobby or self.current_lobby.get("code") != code:
             return
@@ -1133,5 +1136,3 @@ class LobbyMenu:
         message = data.get("message", "")
         self.chat_messages.append((sender, message))
         request_helper.trigger_event()
-
-
