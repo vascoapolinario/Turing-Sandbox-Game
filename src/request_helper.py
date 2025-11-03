@@ -436,7 +436,7 @@ hub_connection = None
 
 
 def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left=None, on_lobby_deleted=None,
-                    on_player_kicked=None, on_lobby_started=None, on_environment_synced=None, on_node_proposed=None, on_connection_proposed=None,on_delete_proposed=None):
+                    on_player_kicked=None, on_lobby_started=None, on_environment_synced=None, on_node_proposed=None, on_connection_proposed=None,on_delete_proposed=None, on_chat_message_receieved=None):
     global hub_connection
 
     HUB_URL = LOBBY_URL.replace("/lobbies", "/hubs/lobby")
@@ -472,6 +472,8 @@ def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left
             hub_connection.on("ConnectionProposed", lambda args: on_connection_proposed(args[0]))
         if on_delete_proposed:
             hub_connection.on("DeleteProposed", lambda args: on_delete_proposed(args[0]))
+        if on_chat_message_receieved:
+            hub_connection.on("ChatMessageReceived", lambda args: on_chat_message_receieved(args[0]))
 
         hub_connection.start()
         print("Connected to LobbyHub SignalR")
@@ -580,6 +582,12 @@ def propose_delete(lobby_code, target_data):
         payload = {"lobbyCode": lobby_code, "target": target_data}
         hub_connection.send("ProposeDelete", [payload])
         print(f"[SignalR] Sent delete proposal → {payload.keys()}")
+
+def send_chat_message(lobby_code, sender, message):
+    if not hub_connection:
+        return
+    payload = {"lobbyCode": lobby_code, "sender": sender, "message": message}
+    hub_connection.send("SendChatMessage", [payload])
 
 import pygame
 UPDATE_EVENT = pygame.USEREVENT + 1

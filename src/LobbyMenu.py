@@ -88,6 +88,7 @@ class LobbyMenu:
             on_node_proposed=self.on_node_proposed,
             on_connection_proposed=self.on_connection_proposed,
             on_delete_proposed=self.on_delete_proposed,
+            on_chat_message_receieved=self.on_message_received
         )
         self.join_buttons = []
         self.current_lobby = None
@@ -135,6 +136,13 @@ class LobbyMenu:
 
         self.environment = None
         self.in_environment = False
+
+        self.chat_messages = []
+        self.chat_input = ""
+        self.chat_input_active = False
+        self.chat_cursor_visible = True
+        self.chat_timer = 0
+        self.max_chat_messages = 50
 
     def refresh_lobbies(self):
         all_lobbies = request_helper.get_lobbies(include_started=True) or []
@@ -253,6 +261,7 @@ class LobbyMenu:
 
         if self.current_lobby:
             self._draw_lobby_view(w, h)
+            self._draw_chat_box(w, h)
         else:
             self._draw_host_form(w, h)
             self.btn_host.draw(self.screen)
@@ -418,6 +427,42 @@ class LobbyMenu:
 
         if hasattr(self, "btn_leave"):
             self.btn_leave.draw(self.screen)
+
+    def _draw_chat_box(self, w, h):
+        box = pygame.Rect(int(w * 0.08), int(h * 0.2), int(w * 0.38), int(h * 0.4))
+        pygame.draw.rect(self.screen, (35, 38, 60), box, border_radius=10)
+        pygame.draw.rect(self.screen, COLORS["accent"], box, 2, border_radius=10)
+
+        title = self.font_medium.render("Lobby Chat", True, COLORS["accent"])
+        self.screen.blit(title, (box.x + 15, box.y + 10))
+
+        y_start = box.y + 50
+        line_height = 25
+        visible = self.chat_messages[-10:]
+        for i, msg in enumerate(visible):
+            sender, text = msg
+            color = COLORS["text"]
+            label = self.font_small.render(f"{sender}: {text}", True, color)
+            self.screen.blit(label, (box.x + 15, y_start + i * line_height))
+
+        input_rect = pygame.Rect(box.x + 10, box.bottom - 40, box.width - 20, 30)
+        pygame.draw.rect(self.screen, (45, 48, 75), input_rect, border_radius=6)
+        pygame.draw.rect(self.screen, COLORS["accent"], input_rect, 2, border_radius=6)
+
+        now = pygame.time.get_ticks()
+        if now - self.chat_timer > 500:
+            self.chat_cursor_visible = not self.chat_cursor_visible
+            self.chat_timer = now
+
+        display = self.chat_input
+        if self.chat_input_active and self.chat_cursor_visible:
+            display += "|"
+        elif not display and not self.chat_input_active:
+            display = "Type a message..."
+
+        txt = self.font_small.render(display, True, COLORS["text"])
+        self.screen.blit(txt, (input_rect.x + 8, input_rect.y + 5))
+        self.chat_input_rect = input_rect
 
     def _draw_host_form(self, w, h):
         left_rect = pygame.Rect(int(w * 0.08), int(h * 0.2),
@@ -671,6 +716,27 @@ class LobbyMenu:
             self.btn_level_cancel.handle_event(event)
             self.btn_level_ok.handle_event(event)
         self.btn_back.handle_event(event)
+        if self.current_lobby and not self.show_level_popup and not self.show_password_popup:
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if hasattr(self, "chat_input_rect") and self.chat_input_rect.collidepoint(event.pos):
+                    self.chat_input_active = True
+                else:
+                    self.chat_input_active = False
+
+            if self.chat_input_active and event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN and self.chat_input.strip():
+                    code = self.current_lobby.get("code")
+                    msg = self.chat_input.strip()
+                    sender = request_helper.get_username()
+                    request_helper.send_chat_message(code, sender, msg)
+                    self.chat_input = ""
+                elif event.key == pygame.K_BACKSPACE:
+                    self.chat_input = self.chat_input[:-1]
+                else:
+                    ch = event.unicode
+                    if len(ch) == 1 and ch.isprintable() and len(self.chat_input) < 200:
+                        self.chat_input += ch
+
         if event.type == pygame.MOUSEBUTTONDOWN:
             mx, my = event.pos
             toggle_rect = pygame.Rect(int(self.screen.get_width() * 0.09), int(self.screen.get_height() * 0.45),
@@ -1056,6 +1122,16 @@ class LobbyMenu:
         proposer = data.get("proposer")
         print(f"[Multiplayer] Delete proposed by {proposer}")
         self.environment.apply_delete_proposal(target)
+        request_helper.trigger_event()
+
+    def on_message_received(self, data):
+        code = data.get("lobbyCode")
+        if not self.current_lobby or self.current_lobby.get("code") != code:
+            return
+
+        sender = data.get("sender", "Unknown")
+        message = data.get("message", "")
+        self.chat_messages.append((sender, message))
         request_helper.trigger_event()
 
 
