@@ -255,7 +255,8 @@ def upload_level(level):
         "alphabetJson" : level.alphabet,
         "transformTestsJson" : level.transform_tests,
         "correctExamplesJson" : level.correct_examples,
-        "wrongExamplesJson" : level.wrong_examples
+        "wrongExamplesJson" : level.wrong_examples,
+        "twoTapes" : level.double_tape
     }
     return create_workshop_item(RequestJson)
 
@@ -308,7 +309,7 @@ def workshopitem_to_object(item_json):
             "transform_tests": ensure_parsed(item_json.get("transformTestsJson")),
             "correct_examples": ensure_parsed(item_json.get("correctExamplesJson")),
             "wrong_examples": ensure_parsed(item_json.get("wrongExamplesJson")),
-            "double_tape": item_json.get("doubleTape", False)
+            "double_tape": item_json.get("twoTapes", False)
         }
         return Level.Level.from_dict(level_data)
 
