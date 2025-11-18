@@ -7,6 +7,7 @@ from Node import Node
 from FontManager import FontManager
 import request_helper
 from AuthenticationPopup import AuthenticationPopup
+from HelpPopup import HelpPopup
 
 
 class MainMenu:
@@ -18,12 +19,14 @@ class MainMenu:
         self.pressed = ""
         self.current_user = None
         self.AuthenticationPopup = None
+        self.help_popup = None
 
         self.buttons = [
-            Button("Levels", (0.4, 0.44, 0.2, 0.08), self.button_font, self.open_levels),
-            Button("Sandbox", (0.4, 0.54, 0.2, 0.08), self.button_font, self.start_game),
-            Button("Multiplayer", (0.4, 0.64, 0.2, 0.08), self.button_font, self.open_multiplayer),
-            Button("Settings", (0.4, 0.74, 0.2, 0.08), self.button_font, self.open_settings),
+            Button("Levels", (0.4, 0.34, 0.2, 0.08), self.button_font, self.open_levels),
+            Button("Sandbox", (0.4, 0.44, 0.2, 0.08), self.button_font, self.start_game),
+            Button("Multiplayer", (0.4, 0.54, 0.2, 0.08), self.button_font, self.open_multiplayer),
+            Button("Settings", (0.4, 0.64, 0.2, 0.08), self.button_font, self.open_settings),
+            Button("Help", (0.4, 0.74, 0.2, 0.08), self.button_font, self.open_help),
             Button("Quit", (0.4, 0.84, 0.2, 0.08), self.button_font, self.quit_game),
         ]
 
@@ -154,9 +157,15 @@ class MainMenu:
         if self.AuthenticationPopup:
             self.AuthenticationPopup.draw()
 
+        if self.help_popup:
+            self.help_popup.draw()
+
     def handle_event(self, event):
         if self.AuthenticationPopup:
             self.AuthenticationPopup.handle_event(event)
+            return
+        if self.help_popup:
+            self.help_popup.handle_event(event)
             return
         for button in self.buttons:
             button.handle_event(event)
@@ -179,6 +188,13 @@ class MainMenu:
                 self.AuthenticationPopup = AuthenticationPopup(self.screen, on_authenticated=self._on_auth)
         else:
             self.pressed = "multiplayer"
+
+    def open_help(self):
+        self.help_popup = HelpPopup(self.screen, on_close=self._close_help)
+
+    def _close_help(self):
+        self.help_popup = None
+
 
     def _on_auth(self, user):
         if request_helper.verify_authentication():

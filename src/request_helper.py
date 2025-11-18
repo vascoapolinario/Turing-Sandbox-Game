@@ -133,6 +133,40 @@ def register_user(username: str, password: str):
         print(e)
     return None
 
+def delete_account(user_id: int):
+    debug_requests("delete_account")
+    try:
+        token, user = load_session()
+        if not token:
+            print("No session token, cannot delete account")
+            return False, "Not authenticated"
+
+        headers = {"Authorization": f"Bearer {token}"}
+
+        r = requests.delete(
+            f"{AUTH_POP_UP_URL}/{user_id}",
+            headers=headers,
+            verify=VERIFY_SSL,
+            timeout=7,
+        )
+
+        if r.status_code == 200:
+            clear_session()
+            return True, r.json().get("message", "Account deleted")
+
+        elif r.status_code == 403:
+            return False, "You do not have permission to delete this account."
+
+        elif r.status_code == 404:
+            return False, "Account not found."
+
+        else:
+            return False, f"Delete failed ({r.status_code}): {r.text}"
+
+    except Exception as e:
+        print("Delete failed:", e)
+        return False, "Unexpected error"
+
 
 def get_workshop_items(name_filter: str = None):
     debug_requests("get_workshop_items")

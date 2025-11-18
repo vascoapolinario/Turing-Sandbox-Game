@@ -671,7 +671,6 @@ class Environment:
 
         new_node = Node(snapped_pos, is_end=is_end)
 
-        # Optionally ensure we have a start node
         if len(self.nodes) == 0 or not any(n.is_start for n in self.nodes):
             new_node.is_start = True
             new_node.id = 0

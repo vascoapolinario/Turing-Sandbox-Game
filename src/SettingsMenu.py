@@ -28,6 +28,17 @@ class SettingsMenu:
         self.btn_back = Button("Back", (0.04, 0.03, 0.12, 0.06), self.font_small, self._close)
         self.btn_login = Button("Login", (0.0, 0.0, 0.2, 0.06), self.font_small, self._open_login)
         self.btn_logout = Button("Logout", (0.0, 0.0, 0.2, 0.06), self.font_small, self._logout)
+        self.btn_delete_account = Button("Delete Account", (0.0, 0.0, 0.2, 0.06), self.font_small, self._delete_account_popup)
+        self.btn_confirm_delete = Button(
+            "Delete", (0.0, 0.0, 0.2, 0.06),
+            self.font_small, self._delete_account_confirm
+        )
+        self.btn_cancel_delete = Button(
+            "Cancel", (0.0, 0.0, 0.2, 0.06),
+            self.font_small, self._delete_account_cancel
+        )
+
+        self.delete_confirm_active = False
 
         self.sandbox_alphabet = sandbox_alphabet if sandbox_alphabet is not None else ['0', '1', '_']
         self.input_active = False
@@ -45,8 +56,16 @@ class SettingsMenu:
             self.auth_popup.handle_event(event)
             return
 
+        if self.delete_confirm_active:
+            self.btn_confirm_delete.handle_event(event)
+            self.btn_cancel_delete.handle_event(event)
+            return
+
         self.btn_back.handle_event(event)
         (self.btn_logout if self.current_user else self.btn_login).handle_event(event)
+
+        if self.current_user:
+            self.btn_delete_account.handle_event(event)
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = event.pos
@@ -126,6 +145,9 @@ class SettingsMenu:
         if self.auth_popup:
             self.auth_popup.draw()
 
+        if self.delete_confirm_active:
+            self._draw_delete_confirm_popup()
+
     def _draw_profile_section(self, panel_rect, y):
         label = self.font_label.render("Profile", True, COLORS["accent"])
         self.screen.blit(label, (panel_rect.x + 30, y))
@@ -147,6 +169,17 @@ class SettingsMenu:
             btn_y = box_rect.y + (box_rect.height - btn_h) / 2
             self.btn_logout.rect = pygame.Rect(btn_x, btn_y, btn_w, btn_h)
             self.btn_logout.draw(self.screen)
+
+            del_w, del_h = 150, 36
+            del_x = btn_x - del_w - 15
+
+            self.btn_delete_account.rect = pygame.Rect(del_x, btn_y, del_w, del_h)
+
+            pygame.draw.rect(self.screen, (120, 40, 40), self.btn_delete_account.rect, border_radius=8)
+            pygame.draw.rect(self.screen, (200, 80, 80), self.btn_delete_account.rect, 3, border_radius=8)
+
+            txt = self.font_small.render("Delete Account", True, (255, 200, 200))
+            self.screen.blit(txt, txt.get_rect(center=self.btn_delete_account.rect.center))
         else:
             text = self.font_medium.render("Not logged in", True, COLORS["text"])
             self.screen.blit(text, (box_rect.x + 20, box_rect.y + 15))
@@ -229,6 +262,66 @@ class SettingsMenu:
             pygame.draw.rect(self.screen, COLORS["accent"], rect, 2, border_radius=6)
             self.screen.blit(tape_font.render(sym, True, COLORS["text"]),
                              tape_font.render(sym, True, COLORS["text"]).get_rect(center=rect.center))
+
+    def _draw_delete_confirm_popup(self):
+        w, h = self.screen.get_size()
+        box = pygame.Rect(w * 0.3, h * 0.35, w * 0.4, h * 0.25)
+
+        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        self.screen.blit(overlay, (0, 0))
+
+        pygame.draw.rect(self.screen, (30, 32, 50), box, border_radius=12)
+        pygame.draw.rect(self.screen, COLORS["accent"], box, 3, border_radius=12)
+
+        title = self.font_label.render("Delete Account?", True, COLORS["accent"])
+        self.screen.blit(title, title.get_rect(center=(box.centerx, box.y + 40)))
+
+        msg = self.font_small.render(
+            "This cannot be undone. All your data will be permanently deleted.",
+            True, COLORS["text"]
+        )
+        self.screen.blit(msg, msg.get_rect(center=(box.centerx, box.y + 100)))
+
+        cancel_rect = pygame.Rect(
+            box.x + box.w * 0.1,
+            box.y + box.h * 0.65,
+            box.w * 0.3,
+            50
+        )
+        confirm_rect = pygame.Rect(
+            box.x + box.w * 0.6,
+            box.y + box.h * 0.65,
+            box.w * 0.3,
+            50
+        )
+
+        self.btn_confirm_delete.rect = confirm_rect
+        self.btn_cancel_delete.rect = cancel_rect
+
+        self.btn_confirm_delete.draw(self.screen)
+        self.btn_cancel_delete.draw(self.screen)
+
+    def _delete_account_popup(self):
+        self.delete_confirm_active = True
+
+    def _delete_account_cancel(self):
+        self.delete_confirm_active = False
+
+    def _delete_account_confirm(self):
+        self.delete_confirm_active = False
+
+        if not self.current_user:
+            return
+
+        user_id = self.current_user.get("id")
+
+        success, message = request_helper.delete_account(user_id)
+        print(message)
+
+        if success:
+            self.current_user = None
+            self._close()
 
     def _open_login(self):
         self.auth_popup = AuthenticationPopup(self.screen, self._on_authenticated)
