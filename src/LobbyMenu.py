@@ -111,9 +111,9 @@ class LobbyMenu:
         self.level_results = []
         self.level_cursor_visible = True
         self.level_timer = 0
-        self.btn_level_cancel = Button("Cancel", (0.60, 0.73, 0.15, 0.07),
+        self.btn_level_cancel = Button("Cancel", (0.60, 0.76, 0.15, 0.07),
                                        self.font_small, self._cancel_level_popup)
-        self.btn_level_ok = Button("OK", (0.25, 0.73, 0.15, 0.07),
+        self.btn_level_ok = Button("OK", (0.25, 0.76, 0.15, 0.07),
                                    self.font_small, self._confirm_level_popup)
         self.selected_temp_level = None
         self.selected_temp_level_id = None
@@ -626,7 +626,7 @@ class LobbyMenu:
             self.screen.blit(txt, (rect.x + 10, rect.y + 10))
 
         btn_w, btn_h = int(w * 0.15), int(h * 0.07)
-        btn_y = box.bottom - int(h * 0.12)
+        btn_y = box.bottom - int(h * 0.08)
 
         self.btn_level_cancel.rect = pygame.Rect(int(w * 0.28), btn_y, btn_w, btn_h)
         self.btn_level_ok.rect = pygame.Rect(int(w * 0.57), btn_y, btn_w, btn_h)
