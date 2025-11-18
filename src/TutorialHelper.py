@@ -20,6 +20,14 @@ class TutorialHelper:
                 "Now connect the start to the end node, set: Read _, move R.",
                 "Press 'Submit' when done — all tests should pass!"
             ]
+        elif "How to Play 3: Double Tape" in level_name:
+            return [
+                "Welcome! Let’s build a double-tape Turing Machine. Add a start node (click 'Node' then click the grid).",
+                "Now add an end node (select 'End Node' tool).",
+                "Connect start to itself with the 'Connect' tool. If you read 0 on tape 1 and _ on tape 2 write 0 on tape 2, move R on both tapes. After that connect again, reading 1 on tape 1 means writting 1 on tape 2.",
+                "Now connect the start to the end node, set: Read (_, _), move (S, S).",
+                "Press 'Submit' when done — all tests should pass!"
+            ]
         else:
             return [
                 "Welcome! Let’s learn the basics of building a Turing Machine. Using the toolbox on your top left: Add two nodes node (one of them starts out green, thats the start node).",
@@ -66,6 +74,35 @@ class TutorialHelper:
                     ):
                         self.step = 5
             elif self.step == 5 and test_complete:
+                self.visible = False
+        elif "How to Play 3: Double Tape" in self.level_name:
+            if self.step == 0 and len(nodes) > 0:
+                self.step = 1
+            elif self.step == 1 and any(n.is_end for n in nodes):
+                self.step = 2
+            elif self.step == 2:
+                if len(nodes) > 1:
+                    start = nodes[0]
+                    non_start = next((n for n in nodes if n is not start), None)
+                    if non_start and any(
+                            c.start == start and c.end == non_start and (
+                                    c.read == ["0"] and c.move == "R" and c.write2 == "0" and c.move2 == "R"
+                            ) or (
+                                    c.read == ["1"] and c.move == "R" and c.write2 == "1" and c.move2 == "R"
+                            )
+                            for c in connections
+                    ):
+                        self.step = 3
+            elif self.step == 3:
+                if len(nodes) > 1:
+                    start = nodes[0]
+                    non_start = next((n for n in nodes if n is not nodes[0]), None)
+                    if non_start and any(
+                            c.start == start and c.end == non_start and (c.read == ["_"] and c.move == "S" and c.read2 == ["_"] and c.move2 == "S")
+                            for c in connections
+                    ):
+                        self.step = 4
+            elif self.step == 4 and test_complete:
                 self.visible = False
         else:
             if self.step == 0 and len(nodes) > 0:
