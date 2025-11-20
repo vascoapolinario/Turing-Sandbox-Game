@@ -8,6 +8,7 @@ from FontManager import FontManager
 import request_helper
 from AuthenticationPopup import AuthenticationPopup
 from HelpPopup import HelpPopup
+from WorkshopMenu import WorkshopMenu
 
 
 class MainMenu:
@@ -20,11 +21,12 @@ class MainMenu:
         self.current_user = None
         self.AuthenticationPopup = None
         self.help_popup = None
+        self.workshop_menu = None
 
         self.buttons = [
             Button("Levels", (0.4, 0.34, 0.2, 0.08), self.button_font, self.open_levels),
             Button("Sandbox", (0.4, 0.44, 0.2, 0.08), self.button_font, self.start_game),
-            Button("Multiplayer", (0.4, 0.54, 0.2, 0.08), self.button_font, self.open_multiplayer),
+            Button("Online", (0.4, 0.54, 0.2, 0.08), self.button_font, self.open_online),
             Button("Settings", (0.4, 0.64, 0.2, 0.08), self.button_font, self.open_settings),
             Button("Help", (0.4, 0.74, 0.2, 0.08), self.button_font, self.open_help),
             Button("Quit", (0.4, 0.84, 0.2, 0.08), self.button_font, self.quit_game),
@@ -154,15 +156,21 @@ class MainMenu:
         for button in self.buttons:
             button.draw(self.screen)
 
-        if self.AuthenticationPopup:
-            self.AuthenticationPopup.draw()
+        if self.workshop_menu:
+            self.workshop_menu.draw()
 
         if self.help_popup:
             self.help_popup.draw()
 
+        if self.AuthenticationPopup:
+            self.AuthenticationPopup.draw()
+
     def handle_event(self, event):
         if self.AuthenticationPopup:
             self.AuthenticationPopup.handle_event(event)
+            return
+        if self.workshop_menu:
+            self.workshop_menu.handle_event(event)
             return
         if self.help_popup:
             self.help_popup.handle_event(event)
@@ -178,6 +186,35 @@ class MainMenu:
 
     def open_settings(self):
         self.pressed = "settings"
+
+    def open_online(self):
+        original_buttons = [
+            Button("Levels", (0.4, 0.34, 0.2, 0.08), self.button_font, self.open_levels),
+            Button("Sandbox", (0.4, 0.44, 0.2, 0.08), self.button_font, self.start_game),
+            Button("Online", (0.4, 0.54, 0.2, 0.08), self.button_font, self.open_online),
+            Button("Settings", (0.4, 0.64, 0.2, 0.08), self.button_font, self.open_settings),
+            Button("Help", (0.4, 0.74, 0.2, 0.08), self.button_font, self.open_help),
+            Button("Quit", (0.4, 0.84, 0.2, 0.08), self.button_font, self.quit_game),
+        ]
+
+        self.buttons = [
+            Button("Multiplayer", (0.4, 0.34, 0.2, 0.08), self.button_font, self.open_multiplayer),
+            Button("Workshop", (0.4, 0.44, 0.2, 0.08), self.button_font, self.open_workshop),
+            Button("Back", (0.4, 0.54, 0.2, 0.08), self.button_font, lambda : setattr(self, 'buttons', original_buttons)),
+        ]
+
+    def open_workshop(self):
+        if self.current_user is None:
+            if request_helper.verify_authentication():
+                self.current_user = request_helper.get_user()
+                self.workshop_menu = WorkshopMenu(self.screen, self._on_workshop_closed)
+            else:
+                self.AuthenticationPopup = AuthenticationPopup(self.screen, on_authenticated=self._on_auth_workshop)
+        else:
+            self.workshop_menu = WorkshopMenu(self.screen, self._on_workshop_closed)
+
+    def _on_workshop_closed(self):
+        self.workshop_menu = None
 
     def open_multiplayer(self):
         if self.current_user is None:
@@ -196,12 +233,20 @@ class MainMenu:
         self.help_popup = None
 
 
-    def _on_auth(self, user):
+    def _on_auth(self):
         if request_helper.verify_authentication():
             self.current_user = request_helper.get_user()
             self.pressed = "multiplayer"
             self.AuthenticationPopup = None
             self.pressed = "multiplayer"
+        else:
+            self.AuthenticationPopup = None
+
+    def _on_auth_workshop(self, user):
+        if request_helper.verify_authentication():
+            self.current_user = request_helper.get_user()
+            self.AuthenticationPopup = None
+            self.workshop_menu = WorkshopMenu(self.screen, self._on_workshop_closed)
         else:
             self.AuthenticationPopup = None
 
