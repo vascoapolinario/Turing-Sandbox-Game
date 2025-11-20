@@ -233,7 +233,7 @@ class MainMenu:
         self.help_popup = None
 
 
-    def _on_auth(self):
+    def _on_auth(self, user):
         if request_helper.verify_authentication():
             self.current_user = request_helper.get_user()
             self.pressed = "multiplayer"

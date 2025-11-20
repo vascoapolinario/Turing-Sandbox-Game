@@ -6,7 +6,7 @@ import pygame
 from Levels import LEVELS
 from Button import Button, COLORS
 from collections import defaultdict
-from save_manager import load_progress, is_level_complete, get_level_solution, delete_progress
+from save_manager import load_progress, is_level_complete, get_level_solution, delete_progress, get_level_stats
 from NewLevelPopUp import NewLevelPopup
 from Level import Level
 from WorkshopMenu import WorkshopMenu
@@ -97,6 +97,7 @@ class LevelSelectMenu:
 
         self.level_to_start = None
         self.progress = load_progress()
+        self.current_level_stats = None
 
     def _build_type_buttons(self):
         self.type_buttons.clear()
@@ -144,10 +145,12 @@ class LevelSelectMenu:
     def _select_type(self, type):
         self.selected_type = type
         self.selected_level = self.level_groups[type][0]
+        self.current_level_stats = None
         self._build_level_buttons()
 
     def _select_level(self, level):
         self.selected_level = level
+        self.current_level_stats = None
 
     def _confirm_play(self):
         if self.selected_level:
@@ -302,6 +305,13 @@ class LevelSelectMenu:
                 self.solution_button.update_rect((w, h))
                 self.solution_button.draw(self.screen)
 
+                if self.current_level_stats is None:
+                    self.current_level_stats = get_level_stats(self.selected_level.name)
+
+                stats_text = f"Time: {self.current_level_stats['time']}s, Nodes: {self.current_level_stats['num_nodes']}, Connections: {self.current_level_stats['num_connections']}"
+                stats_surf = self.font_small.render(stats_text, True, COLORS["text"])
+                self.screen.blit(stats_surf, (info_rect.x + 20, info_rect.bottom - 40))
+
             self.screen.blit(name, (info_rect.x + 20, info_rect.y + 20))
 
             y_offset = info_rect.y + 70
@@ -426,6 +436,7 @@ class LevelSelectMenu:
             if self.selected_type == "Custom":
                 self.selected_type = list(self.level_groups.keys())[0]
                 self.selected_level = self.level_groups[self.selected_type][0]
+                self.current_level_stats = None
 
         self._build_type_buttons()
         self._build_level_buttons()
@@ -460,6 +471,7 @@ class LevelSelectMenu:
             if self.selected_type == "Workshop" and self.level_groups:
                 self.selected_type = list(self.level_groups.keys())[0]
                 self.selected_level = self.level_groups[self.selected_type][0]
+                self.current_level_stats = None
 
         self._build_type_buttons()
         self._build_level_buttons()

@@ -107,6 +107,10 @@ class Environment:
         if self.level.type == "Tutorial":
             self.tutorial = TutorialHelper(screen, self.level.name)
 
+        self.level_attempt_start_time = pygame.time.get_ticks()
+        self.last_completion_time = None
+        self.wasLoaded = False
+
     def update(self, dt):
         self.TuringMachine.update(dt)
         if self.TuringMachine.alphabet != self.alphabet:
@@ -475,8 +479,21 @@ class Environment:
         passed = sum(1 for r in self.test_results if r)
         self.all_passed = (total > 0 and passed == total)
         if self.all_passed and self.level.type != "sandbox":
+            if not self.wasLoaded:
+                self.last_completion_time = pygame.time.get_ticks() - self.level_attempt_start_time
+                try:
+                    time_seconds = self.last_completion_time / 1000.0
+                except:
+                    time_seconds = None
+
+                previous_time = save_manager.get_level_completion_time(self.level.name)
+                if time_seconds is None or (previous_time is not None and time_seconds >= previous_time):
+                    self.last_completion_time = None
+                self.last_completion_time = time_seconds
+
             self.level.solution = self.TuringMachine.serialize(self.level.name)
-            save_manager.mark_level_complete(self.level.name, self.level.solution)
+            save_manager.mark_level_complete(self.level.name, self.level.solution, self.last_completion_time)
+            print("Level completed in", self.last_completion_time, "seconds", " with (%d) Nodes and (%d) Connections!" % (len(self.nodes), len(self.connections)))
         self.test_complete = True
 
         self.TuringMachine.reset()
@@ -519,6 +536,7 @@ class Environment:
         data = save_manager.load_machine(name, workshop=is_workshop)
         Node._id_counter = 0
         self.TuringMachine.deserialize(data)
+        self.wasLoaded = True
 
     def _return_to_menu(self):
         if self.multiplayer:
@@ -558,6 +576,7 @@ class Environment:
     def load_solution(self, solution):
         Node.id_counter = 0
         self.TuringMachine.deserialize(solution)
+        self.wasLoaded = True
 
     def _clear_space(self):
         self.nodes.clear()
@@ -574,6 +593,9 @@ class Environment:
         self.all_passed = False
         self.paused = False
         self.pause_menu.hide()
+        self.level_attempt_start_time = pygame.time.get_ticks()
+        self.wasLoaded = False
+
 
     def _levelmenu(self):
         self.back_to_menu = True

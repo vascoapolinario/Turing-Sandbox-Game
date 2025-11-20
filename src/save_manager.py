@@ -99,11 +99,14 @@ def save_progress(progress):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(progress, f, indent=4)
 
-def mark_level_complete(level_name, solution=None):
+def mark_level_complete(level_name, solution=None, time=None):
     progress = load_progress()
     progress[level_name] = {"completed": True}
     if solution:
         progress[level_name]["solution"] = solution
+    if time is not None:
+        time = round(time, 1)
+        progress[level_name]["time"] = time
     save_progress(progress)
 
 def is_level_complete(level_name):
@@ -111,6 +114,22 @@ def is_level_complete(level_name):
 
 def get_level_solution(level_name):
     return load_progress().get(level_name, {}).get("solution", None)
+
+def get_level_completion_time(level_name):
+    return load_progress().get(level_name, {}).get("time", None)
+
+def get_level_stats(level_name):
+    progress = load_progress().get(level_name, {})
+    solution = progress.get("solution", {})
+    num_nodes = len(solution.get("nodes", []))
+    num_connections = len(solution.get("connections", []))
+    return {
+        "completed": progress.get("completed", False),
+        "time": progress.get("time", None),
+        "num_nodes": num_nodes,
+        "num_connections": num_connections
+    }
+
 
 def save_workshop_level(level: Level):
     path = os.path.join(get_save_dir(workshop_levels=True), f"{level.name}.json")
