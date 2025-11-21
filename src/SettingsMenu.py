@@ -24,6 +24,11 @@ class SettingsMenu:
 
         token, user = request_helper.load_session()
         self.current_user = user if token else None
+        if token and user:
+            verified = request_helper.verify_authentication()
+            if not verified:
+                self.current_user = None
+
 
         self.btn_back = Button("Back", (0.04, 0.03, 0.12, 0.06), self.font_small, self._close)
         self.btn_login = Button("Login", (0.0, 0.0, 0.2, 0.06), self.font_small, self._open_login)
