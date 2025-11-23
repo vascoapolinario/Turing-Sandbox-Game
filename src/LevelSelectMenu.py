@@ -11,6 +11,7 @@ from NewLevelPopUp import NewLevelPopup
 from Level import Level
 from WorkshopMenu import WorkshopMenu
 from AuthenticationPopup import AuthenticationPopup
+from LeaderboardMenu import LeaderboardMenu
 import request_helper
 
 
@@ -43,7 +44,7 @@ class LevelSelectMenu:
 
         self.solution_button = Button(
             "See Solution",
-            (0.65, 0.74, 0.25, 0.08),
+            (0.69, 0.74, 0.25, 0.08),
             self.font_medium,
             self._see_solution
         )
@@ -98,6 +99,15 @@ class LevelSelectMenu:
         self.level_to_start = None
         self.progress = load_progress()
         self.current_level_stats = None
+
+        self.view_leaderboard_button = Button(
+            "Leaderboard",
+            (0.79, 0.4, 0.15, 0.08),
+            self.font_medium,
+            self._open_leaderboard
+        )
+
+        self.leaderboard_menu = None
 
     def _build_type_buttons(self):
         self.type_buttons.clear()
@@ -157,6 +167,10 @@ class LevelSelectMenu:
             self.level_to_start = self.selected_level
 
     def handle_event(self, event):
+        if self.leaderboard_menu:
+            self.leaderboard_menu.handle_event(event)
+            return
+
         if self.auth_popup:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
@@ -194,6 +208,7 @@ class LevelSelectMenu:
         self.resetAllProgress_button.handle_event(event)
         self.workshop_button.handle_event(event)
         self.back_button.handle_event(event)
+        self.view_leaderboard_button.handle_event(event)
 
     def update(self):
         w, h = self.screen.get_size()
@@ -312,6 +327,10 @@ class LevelSelectMenu:
                 stats_surf = self.font_small.render(stats_text, True, COLORS["text"])
                 self.screen.blit(stats_surf, (info_rect.x + 20, info_rect.bottom - 40))
 
+            if self.selected_level and self.selected_type not in ["Custom", "Workshop", "Tutorial"]:
+                self.view_leaderboard_button.update_rect((w, h))
+                self.view_leaderboard_button.draw(self.screen)
+
             self.screen.blit(name, (info_rect.x + 20, info_rect.y + 20))
 
             y_offset = info_rect.y + 70
@@ -350,6 +369,9 @@ class LevelSelectMenu:
 
         if self.auth_popup:
             self.auth_popup.draw()
+
+        if self.leaderboard_menu:
+            self.leaderboard_menu.draw()
 
 
     def _wrap_text(self, text, max_width):
@@ -498,5 +520,29 @@ class LevelSelectMenu:
         self.auth_popup = None
         print(f"Authenticated as {user['username']}")
         self._open_workshop_menu()
+
+    def _on_authenticated_leaderboard(self, user):
+        if user == None:
+            self.auth_popup = None
+            return
+        self.current_user = user
+        self.auth_popup = None
+        print(f"Authenticated as {user['username']}")
+        self._open_leaderboard()
+
+    def _open_leaderboard(self):
+        if request_helper.verify_authentication():
+            if not self.selected_level:
+                return
+            self.leaderboard_menu = LeaderboardMenu(
+                self.screen,
+                self.selected_level.name,
+                on_close=self._close_leaderboard
+            )
+        else:
+            self.auth_popup = AuthenticationPopup(self.screen, self._on_authenticated_leaderboard())
+
+    def _close_leaderboard(self):
+        self.leaderboard_menu = None
 
 

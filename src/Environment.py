@@ -15,6 +15,7 @@ from TuringMachine import TuringMachine
 from PauseMenu import PauseMenu
 from TutorialHelper import TutorialHelper
 from FontManager import FontManager
+from SubmitPopup import SubmitPopup
 import request_helper
 
 
@@ -90,6 +91,7 @@ class Environment:
             on_close=self._resume,
             on_load=self._load_named_machine
         )
+        self.submit_popup = None
 
         if self.level.type != "sandbox":
             if self.level.mode == "accept":
@@ -176,7 +178,13 @@ class Environment:
             self.save_menu.draw()
             self.save_menu.update()
 
+        if self.submit_popup:
+            self.submit_popup.draw()
+
     def handle_event(self, event):
+        if self.submit_popup:
+            self.submit_popup.handle_event(event)
+            return
         if self.save_menu.visible:
             self.save_menu.handle_event(event)
             return
@@ -493,7 +501,8 @@ class Environment:
 
             self.level.solution = self.TuringMachine.serialize(self.level.name)
             save_manager.mark_level_complete(self.level.name, self.level.solution, self.last_completion_time)
-            print("Level completed in", self.last_completion_time, "seconds", " with (%d) Nodes and (%d) Connections!" % (len(self.nodes), len(self.connections)))
+            self._open_submit_popup()
+            #print("Level completed in", self.last_completion_time, "seconds", " with (%d) Nodes and (%d) Connections!" % (len(self.nodes), len(self.connections)))
         self.test_complete = True
 
         self.TuringMachine.reset()
@@ -503,6 +512,39 @@ class Environment:
             self.tape.change_tape(self.level.transform_tests[0]["input"] if self.level.transform_tests else "")
         self.TuringMachine.play()
         self.TuringMachine.open = True
+
+    def _open_submit_popup(self):
+        if self.submit_popup is not None:
+            return
+
+        if self.level.type in ("Workshop", "Tutorial", "Custom"):
+            return
+
+        time_seconds = self.last_completion_time or 0.0
+        node_count = len(self.nodes)
+        connection_count = len(self.connections)
+
+        def do_submit():
+            request_helper.submit_leaderboard(
+                self.level.name,
+                time_seconds,
+                node_count,
+                connection_count
+            )
+            self.submit_popup = None
+
+        def cancel_submit():
+            self.submit_popup = None
+
+        self.submit_popup = SubmitPopup(
+            self.screen,
+            self.level.name,
+            time_seconds,
+            node_count,
+            connection_count,
+            on_submit=do_submit,
+            on_cancel=cancel_submit
+        )
 
     def _simulate(self, input_string, should_accept=True):
         if not self.nodes or not any(n.is_start for n in self.nodes):

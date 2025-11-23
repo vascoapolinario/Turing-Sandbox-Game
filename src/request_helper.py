@@ -15,6 +15,7 @@ AUTH_URL = "https://turingmachinesapi.onrender.com/auth"
 AUTH_POP_UP_URL = "https://turingmachinesapi.onrender.com/players"
 AUTH_VERIFY_URL = "https://turingmachinesapi.onrender.com/players/verify"
 LOBBY_URL = "https://turingmachinesapi.onrender.com/lobbies"
+LEADERBOARD_URL = "https://turingmachinesapi.onrender.com/leaderboard"
 VERIFY_SSL = True
 
 # Localhost testing links:
@@ -24,6 +25,7 @@ VERIFY_SSL = True
 #AUTH_POP_UP_URL = "https://localhost:7054/players"
 #AUTH_VERIFY_URL = "https://localhost:7054/players/verify"
 #LOBBY_URL = "https://localhost:7054/lobbies"
+#LEADERBOARD_URL = "https://localhost:7054/leaderboard"
 #VERIFY_SSL = False
 
 
@@ -319,6 +321,95 @@ def upload_machine(machine):
         "connectionsJson": connections
     }
     return create_workshop_item(RequestJson)
+
+def submit_leaderboard(level_name: str, time_seconds: float, node_count: int, connection_count: int):
+    debug_requests("submit_leaderboard")
+
+    headers = get_auth_headers()
+    if "Authorization" not in headers or not headers["Authorization"]:
+        print("Not authenticated; cannot submit leaderboard.")
+        return False, "Not authenticated"
+
+    payload = {
+        "levelName": level_name,
+        "PlayerName": get_username(),
+        "time": time_seconds,
+        "nodeCount": node_count,
+        "connectionCount": connection_count,
+    }
+
+    try:
+        r = requests.post(
+            LEADERBOARD_URL,
+            headers=headers,
+            json=payload,
+            verify=VERIFY_SSL,
+            timeout=7,
+        )
+
+        if r.status_code in (200, 201):
+            try:
+                return True, r.json()
+            except ValueError:
+                return True, None
+        elif r.status_code == 400:
+            msg = f"Invalid submission ({r.status_code}): {r.text}"
+            print(msg)
+            return False, msg
+        elif r.status_code == 401:
+            print("Authentication failed; clearing session.")
+            clear_session()
+            return False, "Authentication failed; please log in again."
+        elif r.status_code == 429:
+            msg = "Rate limited when submitting to leaderboard; try again later."
+            print(msg)
+            return False, msg
+        else:
+            msg = f"Leaderboard submit failed ({r.status_code}): {r.text}"
+            print(msg)
+            return False, msg
+
+    except Exception as e:
+        print("Leaderboard submission failed:", e)
+        return False, "Unexpected error while submitting to leaderboard"
+
+
+def get_leaderboard(level_name: str):
+    debug_requests("get_leaderboard")
+    headers = get_auth_headers()
+
+    params = {
+        "Player": "false",
+        "levelName": level_name
+    }
+
+    try:
+        r = requests.get(
+            LEADERBOARD_URL,
+            headers=headers,
+            params=params,
+            verify=VERIFY_SSL,
+            timeout=7
+        )
+
+        if r.status_code == 200:
+            return r.json()
+
+        elif r.status_code == 429:
+            print("Rate limit hit on leaderboard request")
+            return None
+
+        elif r.status_code == 401:
+            print("Unauthorized while requesting leaderboard")
+            return None
+
+        else:
+            print("Leaderboard bad status:", r.status_code, r.text)
+            return None
+
+    except Exception as e:
+        print("Error requesting leaderboard:", e)
+        return None
 
 def workshopitem_to_object(item_json):
     item_type = item_json.get("type")
