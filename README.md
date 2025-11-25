@@ -4,9 +4,8 @@ A game made with python using pygame to build and simulate turing machines
 📦Latest version download release at:
 - [https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/0.6.0](https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/0.6.0)
 
-
-This web version is very outdated, only recommended if running the exe is not possible.
-- 🔗Available for testing (OLD web build) at: [https://vascoapolinario.github.io/Turing-Sandbox-Game](https://vascoapolinario.github.io/Turing-Sandbox-Game/)
+🔗 View the workshop and other game details through the API dashboard available at:
+- [https://vascoapolinario.github.io/TuringMachinesAPI/](https://vascoapolinario.github.io/TuringMachinesAPI/)
 
 Code for the API (Server) available at:
 [TuringMachinesAPI](https://github.com/vascoapolinario/TuringMachinesAPI)
