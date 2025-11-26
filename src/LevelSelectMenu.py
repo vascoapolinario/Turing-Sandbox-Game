@@ -156,6 +156,7 @@ class LevelSelectMenu:
         self.selected_type = type
         self.selected_level = self.level_groups[type][0]
         self.current_level_stats = None
+        self.page_index = 0
         self._build_level_buttons()
 
     def _select_level(self, level):

@@ -500,8 +500,9 @@ class Environment:
                 self.last_completion_time = time_seconds
 
             self.level.solution = self.TuringMachine.serialize(self.level.name)
-            save_manager.mark_level_complete(self.level.name, self.level.solution, self.last_completion_time)
-            self._open_submit_popup()
+            if not self.wasLoaded:
+                save_manager.mark_level_complete(self.level.name, self.level.solution, self.last_completion_time)
+                self._open_submit_popup()
             #print("Level completed in", self.last_completion_time, "seconds", " with (%d) Nodes and (%d) Connections!" % (len(self.nodes), len(self.connections)))
         self.test_complete = True
 
