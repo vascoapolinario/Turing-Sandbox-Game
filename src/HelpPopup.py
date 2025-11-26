@@ -116,6 +116,14 @@ class HelpPopup:
                 "To delete your account press the 'Delete Account' button in the settings menu.\n"
             ),
             (
+                "Leaderboards",
+                "Official levels feature leaderboards where you can compare your performance with other players.\n"
+                "Leaderboards track time, node count, and connection count for each level.\n"
+                "To submit your score, complete a level and choose to submit your results when prompted.\n"
+                "Note that, it is necessary to have an account to submit and view leaderboard scores.\n"
+                "To view a level's leaderboard, open the Level Menu, select the level, and click the 'Leaderboard' button."
+            ),
+            (
                 "Tips",
                 "Start simple. Try to solve small versions of the problem first, then extend your machine.\n"
                 "Name your levels clearly if you plan to share them.\n"
@@ -184,7 +192,7 @@ class HelpPopup:
         title_surf = self.title_font.render("Help", True, COLORS["accent"])
         self.screen.blit(title_surf, (box_rect.centerx - title_surf.get_width() // 2, box_rect.y + 20))
 
-        game_version = "v0.6.0"
+        game_version = "v0.7.0"
         version_surf = self.body_font.render(game_version, True, COLORS["text"])
         self.screen.blit(version_surf, (box_rect.right - version_surf.get_width() - 20, box_rect.bottom - version_surf.get_height() - 10))
 
