@@ -1,11 +1,12 @@
 import pygame
 from MainMenu import COLORS
+from FontManager import FontManager
 
 class TutorialHelper:
     def __init__(self, screen, level_name):
         self.screen = screen
-        self.font = pygame.font.SysFont("futura", 20)
-        self.title_font = pygame.font.SysFont("futura", 24, bold=True)
+        self.font = FontManager.get(20, bold=False)
+        self.title_font = FontManager.get(24, bold=True)
         self.level_name = level_name
         self.step = 0
         self.visible = True

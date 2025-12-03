@@ -14,8 +14,8 @@ from WorkshopMenu import WorkshopMenu
 class MainMenu:
     def __init__(self, screen):
         self.screen = screen
-        self.title_font = pygame.font.SysFont("futura", 80, bold=True)
-        self.button_font = pygame.font.SysFont("futura", 32)
+        self.title_font = FontManager.get(80)
+        self.button_font = FontManager.get(32, bold=False)
         self.title_text = self.title_font.render("Turing Machine Sandbox", True, COLORS["accent"])
         self.pressed = ""
         self.current_user = None

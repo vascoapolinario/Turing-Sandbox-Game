@@ -13,16 +13,16 @@ from WorkshopMenu import WorkshopMenu
 from AuthenticationPopup import AuthenticationPopup
 from LeaderboardMenu import LeaderboardMenu
 import request_helper
-
+from src.FontManager import FontManager
 
 
 class LevelSelectMenu:
     def __init__(self, screen, on_close=None):
         self.screen = screen
-        self.font_title = pygame.font.SysFont("futura", 60, bold=True)
-        self.font_large = pygame.font.SysFont("futura", 40, bold=True)
-        self.font_medium = pygame.font.SysFont("futura", 28)
-        self.font_small = pygame.font.SysFont("futura", 20)
+        self.font_title = FontManager.get(60)
+        self.font_large = FontManager.get(40)
+        self.font_medium = FontManager.get(28, bold=False)
+        self.font_small = FontManager.get(20, bold=False)
 
         self.level_groups = defaultdict(list)
         for level in LEVELS:
@@ -308,9 +308,10 @@ class LevelSelectMenu:
 
         base_height = 720
         scale = max(1, min(2.0, h / base_height))
-        self.font_large = pygame.font.SysFont("futura", max(30, int(40 * scale)), bold=True)
-        self.font_medium = pygame.font.SysFont("futura", max(25, int(28 * scale)))
-        self.font_small = pygame.font.SysFont("futura", max(15, int(20 * scale)))
+
+        self.font_large = FontManager.get(max(40, int(40 * scale)), bold=True)
+        self.font_medium = FontManager.get(max(25, int(28 * scale)), bold=False)
+        self.font_small = FontManager.get(max(15, int(20 * scale)), bold=False)
 
         if self.selected_level:
             name = self.font_medium.render(self.selected_level.name, True, COLORS["accent"])

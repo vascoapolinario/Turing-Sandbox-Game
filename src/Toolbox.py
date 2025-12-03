@@ -1,6 +1,7 @@
 import pygame
 from MainMenu import COLORS
 from ToolCell import ToolCell
+from FontManager import FontManager
 
 
 class Toolbox:
@@ -8,7 +9,7 @@ class Toolbox:
         self.screen = screen
         self.on_tool_selected = on_tool_selected
         self.current_tool = None
-        self.font = pygame.font.SysFont("futura", 16, bold=True)
+        self.font = FontManager.get(16, bold=True)
 
         self.is_open = False
         self.animation_progress = 0.0

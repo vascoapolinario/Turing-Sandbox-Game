@@ -1,12 +1,13 @@
 import pygame
 from Button import Button
 from MainMenu import COLORS
+from FontManager import FontManager
 
 class PauseMenu:
     def __init__(self, screen, on_resume, on_save_load, on_exit_to_menu, on_levels, on_clear, on_quit, level=None, multiplayer=False):
         self.screen = screen
-        self.font_title = pygame.font.SysFont("futura", 46, bold=True)
-        self.font_sub = pygame.font.SysFont("futura", 22)
+        self.font_title = FontManager.get(46, bold=True)
+        self.font_sub = FontManager.get(22, bold=False)
         self.visible = False
         self.level = level
         self.multiplayer = multiplayer

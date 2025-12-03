@@ -2,13 +2,14 @@ import pygame
 from MainMenu import COLORS
 from Button import Button
 import save_manager
+from FontManager import FontManager
 
 class SaveMenu:
     def __init__(self, screen, turing_machine, on_close, on_load, upload_mode=False, on_upload=None):
         self.screen = screen
         self.visible = False
-        self.font = pygame.font.SysFont("futura", 26, bold=True)
-        self.small = pygame.font.SysFont("futura", 18)
+        self.font = FontManager.get(26, bold=True)
+        self.small = FontManager.get(18, bold=False)
         self.turing_machine = turing_machine
         self.on_close = on_close
         self.on_load = on_load
@@ -88,8 +89,8 @@ class SaveMenu:
 
         base_font = int(max(18, h * 0.022))
         small_font = int(max(14, h * 0.018))
-        self.font = pygame.font.SysFont("futura", base_font, bold=True)
-        self.small = pygame.font.SysFont("futura", small_font)
+        self.font = FontManager.get(base_font, bold=True)
+        self.small = FontManager.get(small_font, bold=False)
 
         self.close_button.rect = pygame.Rect(
             grid_rect.x - grid_rect.width * 0.12,
