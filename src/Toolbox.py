@@ -126,7 +126,6 @@ class Toolbox:
             for tool in self.tools:
                 if tool.handle_event(event):
                     if event.type == pygame.MOUSEBUTTONDOWN:
-                        self.is_open = False
                         self.hover_label_tool = None
                         return True
                 if tool.hovered:

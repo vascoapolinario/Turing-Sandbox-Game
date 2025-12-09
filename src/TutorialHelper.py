@@ -31,7 +31,7 @@ class TutorialHelper:
             ]
         else:
             return [
-                "Welcome! Let’s learn the basics of building a Turing Machine. Using the toolbox on your top left: Add two nodes node (one of them starts out green, thats the start node).",
+                "Welcome! Let’s learn the basics of building a Turing Machine. Using the toolbox on your top left: Add two nodes (one of them starts out green, thats the start node).",
                 "Now add an end node (the red one).",
                 "Connect the start to the blue one node using the 'Connect' tool. Set the connection as if you read a 0 or a 1, move right.",
                 "Connect the blue node to itself. Set the connection as if you read a 0 or a 1, move right.",

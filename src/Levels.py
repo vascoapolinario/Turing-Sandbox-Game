@@ -39,7 +39,7 @@ LEVELS = [
         description="Flip all 0s to 1s and all 1s to 0s in a binary string.",
         detailedDescription="Turing machine transforms a binary string by flipping all '0's to '1's and all '1's to '0's. For example, it should transform '1010' to '0101', '111000' to '000111', and '000' to '111'. Can be achieved with using write.",
         alphabet=["0", "1", "_"],
-        objective="Accept if the count of '0's is even, reject otherwise.",
+        objective="Flip all 0s to 1s and vice versa",
         mode="transform",
         transform_tests= [ {"input": "1010", "output": "0101"} , {"input": "111000", "output": "000111"}, {"input": "000", "output": "111"}, {"input": "1", "output": "0"}, {"input": "", "output": ""} ]
     ),
