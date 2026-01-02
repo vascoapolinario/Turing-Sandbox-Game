@@ -1,8 +1,12 @@
-# Turing Sandbox Game
+# Turing Sandbox
 A game made with python using pygame to build and simulate turing machines
 
-📦Latest version download release at:
-- [https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/0.7.0](https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/0.7.0)
+📦Latest version (windows) download release at:
+- [https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/1.0.0](https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/1.0.0)
+
+If you have PyInstaller you can build the exe yourself by running the following command inside the src folder
+`PyInstaller main.py --onefile --noconsole --icon=assets/favicon.ico --add-data "assets/favicon.ico:assets"
+`
 
 🔗 View the workshop and other game details through the API dashboard available at:
 - [https://vapoli.tech/#/TuringSandbox/dashboard](https://vapoli.tech/#/TuringSandbox/dashboard)
@@ -10,10 +14,11 @@ A game made with python using pygame to build and simulate turing machines
 Code for the API (Server) available at:
 [TuringMachinesAPI](https://github.com/vascoapolinario/TuringMachinesAPI)
 
-## Game Preview
+# Game Preview
 In this game preview you can see a level being solved, the level expects the user to build a turing machine that turns all zeros to ones and ones to zeros
 
-![2025-10-1500-59-17-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/a6c64a69-e430-4cb3-b8d1-54b65027fff4)
+![ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/11a891f0-a6c6-41cf-98c9-0cbe77ee4f06)
+
 
 
 # Key Features
