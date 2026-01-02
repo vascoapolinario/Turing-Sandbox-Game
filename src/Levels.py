@@ -9,7 +9,7 @@ LEVELS = [
         alphabet=["0", "1", "_"],
         objective="Accept all binary words except the empty word.",
         mode="accept",
-        correct_examples=["1", "0", "1100", "101", "111", "000", "1001", "0110"],
+        correct_examples=["101100", "1", "0", "1100", "101", "111", "000", "1001", "0110"],
         wrong_examples=[""]
     ),
     Level(

@@ -13,7 +13,7 @@ from WorkshopMenu import WorkshopMenu
 from AuthenticationPopup import AuthenticationPopup
 from LeaderboardMenu import LeaderboardMenu
 import request_helper
-from src.FontManager import FontManager
+from FontManager import FontManager
 
 
 class LevelSelectMenu:

@@ -31,12 +31,12 @@ class TutorialHelper:
             ]
         else:
             return [
-                "Welcome! Let’s learn the basics of building a Turing Machine. Using the toolbox on your top left: Add two nodes (one of them starts out green, thats the start node).",
-                "Now add an end node (the red one).",
-                "Connect the start to the blue one node using the 'Connect' tool. Set the connection as if you read a 0 or a 1, move right.",
-                "Connect the blue node to itself. Set the connection as if you read a 0 or a 1, move right.",
-                "Connect the blue one to the end node. Set the connection as if you read a blank symbol, move right.",
-                "Press 'Submit' when done to test your machine!",
+                "Welcome! Let’s learn the basics of building a Turing Machine. Open the toolbox on your top left, select Node and Add two nodes by clicking two locations on the grid (one of them starts out green, thats the start node).",
+                "Now Select a End Node and place it somewhere else on the grid",
+                "Connect the green node to the blue node using the 'Connect' tool. Set read to 0 and 1 by selecting both and set Move to R (Right), ignore Write",
+                "Connect the blue node to itself. Again, set read to 0 and 1 by selecting both and set Move to R (Right), ignore Write",
+                "Connect the blue node to the end node (Red). Set the connection with Read Blank (_) move right, ignore write.",
+                "Press 'Submit' when done to test your machine! This machine will read all binary words.",
                 "You may use the button on your right to test other inputs as well and to see the machine in action. Have Fun!",
             ]
 

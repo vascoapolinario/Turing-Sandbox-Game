@@ -192,7 +192,7 @@ class HelpPopup:
         title_surf = self.title_font.render("Help", True, COLORS["accent"])
         self.screen.blit(title_surf, (box_rect.centerx - title_surf.get_width() // 2, box_rect.y + 20))
 
-        game_version = "v0.7.0"
+        game_version = "v1.0.0"
         version_surf = self.body_font.render(game_version, True, COLORS["text"])
         self.screen.blit(version_surf, (box_rect.right - version_surf.get_width() - 20, box_rect.bottom - version_surf.get_height() - 10))
 
