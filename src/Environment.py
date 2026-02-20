@@ -66,6 +66,9 @@ class Environment:
         self.connecting_from = None
         self.mouse_pos = pygame.Vector2(0, 0)
 
+        self.dragging_node = None
+        self.drag_world_offset = pygame.Vector2(0, 0)
+
         self.test_results = []
         self.test_complete = False
         self.all_passed = False
@@ -208,6 +211,27 @@ class Environment:
 
         if event.type == pygame.MOUSEMOTION:
             self.mouse_pos = pygame.Vector2(event.pos)
+            for node in self.nodes:
+                node.hovered = node.is_inside(event.pos, self.grid)
+            if self.dragging_node and self.current_tool == "drag":
+                world_mouse = self.grid.screen_to_world(event.pos)
+                self.dragging_node.pos = self.grid.snap(world_mouse - self.drag_world_offset)
+                return
+
+        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            if self.dragging_node:
+                self.dragging_node.selected = False
+                self.dragging_node.dragging = False
+                final_node = self.dragging_node
+                self.dragging_node = None
+                if self.multiplayer and not self.is_host:
+                    self._propose_node_drag(final_node)
+                elif self.multiplayer and self.is_host:
+                    self._sync_machine()
+                    self._broadcast_state()
+                else:
+                    self._sync_machine()
+                return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.current_tool in ("node", "end_node"):
@@ -252,6 +276,19 @@ class Environment:
                         self._create_connection(start_node, end_node)
                         self.connecting_from = None
                     return
+
+            elif self.current_tool == "drag":
+                clicked_node = self._get_node_at(event.pos)
+                if clicked_node:
+                    self.dragging_node = clicked_node
+                    clicked_node.selected = True
+                    world_mouse = self.grid.screen_to_world(event.pos)
+                    self.drag_world_offset = world_mouse - clicked_node.pos
+                return
+
+            elif self.current_tool == "edit_connection":
+                self._handle_edit_connection(event.pos)
+                return
 
             elif self.current_tool == "delete":
                 self._handle_delete(event.pos)
@@ -352,6 +389,183 @@ class Environment:
 
         if self.multiplayer and self.is_host:
             self._broadcast_state()
+
+    def _handle_edit_connection(self, pos):
+        for conn in reversed(self.connections):
+            if conn.is_clicked(pos, self.grid):
+                if self.multiplayer and not self.is_host:
+                    self._open_connection_editor(conn, propose=True)
+                else:
+                    self._open_connection_editor(conn, propose=False)
+                return
+
+    def _open_connection_editor(self, conn, propose=False):
+
+        def on_save(read, write, move, read2=None, write2=None, move2=None):
+            if not self.connection_window:
+                return
+            if not read or not move:
+                self.connection_window = None
+                return
+
+            double_mode = self.level.double_tape
+            double_provided = (read2 is not None or write2 is not None or move2 is not None)
+
+            if propose:
+                self._propose_connection_edit(conn, read, write, move, read2, write2, move2)
+                self.connection_window = None
+                return
+
+            new_read = set(read)
+            new_read2 = set(read2 or [])
+            for existing in self.connections:
+                if existing is conn:
+                    continue
+                if existing.start == conn.start:
+                    existing_read = set(getattr(existing, "read", []))
+                    existing_read2 = set(getattr(existing, "read2", []))
+                    if not double_mode:
+                        if new_read & existing_read:
+                            self.connection_window = None
+                            return
+                    else:
+                        if new_read & existing_read and new_read2 & existing_read2:
+                            self.connection_window = None
+                            return
+
+            if double_mode and double_provided:
+                conn.update_logic(read, write, move, read2, write2, move2)
+            else:
+                conn.update_logic(read, write, move)
+
+            self._sync_machine()
+            self.connection_window = None
+
+            if self.multiplayer and self.is_host:
+                self._broadcast_state()
+
+        self.connection_window = ConnectionWindow(
+            self.screen,
+            conn,
+            symbols=self.alphabet,
+            on_save=on_save,
+            on_cancel=lambda: setattr(self, "connection_window", None),
+            double_tape=(self.level.double_tape == True)
+        )
+
+    def _propose_node_drag(self, node):
+        """Non-host sends the node's final position to the host via SignalR."""
+        if self.multiplayer and not self.is_host:
+            payload = {
+                "lobbyCode": self.lobby_code,
+                "nodeId": node.id,
+                "x": node.pos.x,
+                "y": node.pos.y,
+            }
+            print(f"[SignalR] Proposing node drag → {payload}")
+            request_helper.propose_node_drag(payload)
+
+    def _propose_connection_edit(self, conn, read, write, move, read2=None, write2=None, move2=None):
+        """Non-host sends updated connection logic to the host via SignalR."""
+        if self.multiplayer and not self.is_host:
+            def clean(value):
+                if value is None:
+                    return []
+                if isinstance(value, (str, int)):
+                    return [str(value)]
+                if isinstance(value, (list, tuple, set)):
+                    return [str(v) for v in value if v is not None]
+                return [str(value)]
+
+            payload = {
+                "lobbyCode": self.lobby_code,
+                "startId": int(conn.start.id),
+                "endId": int(conn.end.id),
+                "read": clean(read),
+                "write": clean(write),
+                "move": clean(move),
+                "read2": clean(read2),
+                "write2": clean(write2),
+                "move2": clean(move2),
+            }
+            print(f"[SignalR] Proposing connection edit → {payload}")
+            request_helper.propose_connection_edit(payload)
+
+    def apply_node_drag_proposal(self, node_id, x, y):
+        """Host receives a drag proposal: find the node, snap it, broadcast."""
+        node = next((n for n in self.nodes if n.id == node_id), None)
+        if not node:
+            print(f"[Host] Node drag proposal ignored — node {node_id} not found")
+            return
+        node.pos = self.grid.snap(pygame.Vector2(x, y))
+        self._sync_machine()
+        self._broadcast_state()
+        print(f"[Host] Applied node drag for node {node_id} -> ({x}, {y})")
+
+    def apply_connection_edit_proposal(self, data):
+        """Host receives a connection-edit proposal: validate and apply it."""
+        start_id = data.get("startId")
+        end_id = data.get("endId")
+
+        conn = next(
+            (c for c in self.connections if c.start.id == start_id and c.end.id == end_id),
+            None
+        )
+        if not conn:
+            print(f"[Host] Connection edit proposal ignored — {start_id}->{end_id} not found")
+            return
+
+        def normalize_list(value):
+            if value is None:
+                return []
+            if isinstance(value, list):
+                if len(value) == 1 and isinstance(value[0], list):
+                    return normalize_list(value[0])
+                return [str(v) for v in value]
+            if isinstance(value, (str, int, float)):
+                return [str(value)]
+            return []
+
+        def normalize_single(value):
+            if value is None:
+                return ""
+            if isinstance(value, list):
+                return str(value[0]) if value else ""
+            return str(value)
+
+        read  = normalize_list(data.get("read"))
+        read2 = normalize_list(data.get("read2"))
+        write  = normalize_single(data.get("write"))
+        move   = normalize_single(data.get("move"))
+        write2 = normalize_single(data.get("write2"))
+        move2  = normalize_single(data.get("move2"))
+
+        double_mode = self.level.double_tape
+        new_read  = set(read)
+        new_read2 = set(read2)
+        for existing in self.connections:
+            if existing is conn:
+                continue
+            if existing.start == conn.start:
+                existing_read  = set(getattr(existing, "read", []))
+                existing_read2 = set(getattr(existing, "read2", []))
+                if not double_mode:
+                    if new_read & existing_read:
+                        print(f"[Host] Connection edit rejected — read conflict on {start_id}->{end_id}")
+                        return
+                else:
+                    if new_read & existing_read and new_read2 & existing_read2:
+                        print(f"[Host] Connection edit rejected — double-tape read conflict on {start_id}->{end_id}")
+                        return
+
+        if double_mode and (read2 or write2 or move2):
+            conn.update_logic(read, write, move, read2, write2, move2)
+        else:
+            conn.update_logic(read, write, move)
+
+        self._sync_machine()
+        self._broadcast_state()
+        print(f"[Host] Applied connection edit {start_id}->{end_id} and broadcasted")
 
     def _cancel_connection_window(self, conn):
         if conn in self.connections:

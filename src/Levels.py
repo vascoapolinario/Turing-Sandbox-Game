@@ -202,6 +202,7 @@ LEVELS = [
         objective="Add the two binary numbers. The result must be on the bottom tape.",
         mode="transform",
         transform_tests= [ {"input": "1101#101", "output": "10010"} , {"input": "1000#1", "output": "1001"}, {"input": "1010#10", "output": "1100"}, {"input": "1111#111", "output": "11110"}, {"input": "10000#1", "output": "10001"} ],
+        double_tape=True
     ),
     Level(
         name="Two Tapes: Subtract binaries",

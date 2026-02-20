@@ -46,12 +46,10 @@ def load_session():
             token = data.get("token")
             user = data.get("user", {})
             if token is not None and user is not None:
-
                 return token, user
         headers = {"Authorization": f"Bearer {token}"}
         debug_requests("load_session")
         r = requests.get(AUTH_VERIFY_URL, headers=headers, verify=VERIFY_SSL, timeout=7)
-
         if r.status_code == 200:
             verified = r.json()
             verified_user = verified.get("user", {})
@@ -142,29 +140,17 @@ def delete_account(user_id: int):
         if not token:
             print("No session token, cannot delete account")
             return False, "Not authenticated"
-
         headers = {"Authorization": f"Bearer {token}"}
-
-        r = requests.delete(
-            f"{AUTH_POP_UP_URL}/{user_id}",
-            headers=headers,
-            verify=VERIFY_SSL,
-            timeout=7,
-        )
-
+        r = requests.delete(f"{AUTH_POP_UP_URL}/{user_id}", headers=headers, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             clear_session()
             return True, r.json().get("message", "Account deleted")
-
         elif r.status_code == 403:
             return False, "You do not have permission to delete this account."
-
         elif r.status_code == 404:
             return False, "Account not found."
-
         else:
             return False, f"Delete failed ({r.status_code}): {r.text}"
-
     except Exception as e:
         print("Delete failed:", e)
         return False, "Unexpected error"
@@ -229,7 +215,6 @@ def rate_workshop_item(item_id: int, rating: int):
     if rating < 1 or rating > 5:
         print("Rating must be between 1 and 5.")
         return False
-
     headers = get_auth_headers()
     try:
         r = requests.post(f"{WORKSHOP_URL}/{item_id}/rate/{rating}", headers=headers, verify=VERIFY_SSL, timeout=7)
@@ -282,23 +267,22 @@ def is_subscribed(item_id: int):
 def upload_level(level):
     debug_requests("upload_level")
     RequestJson = {
-        "name" : level.name,
-        "description" : level.description,
-        "detailedDescription" : level.detailed_description,
-        "objective" : level.objective,
-        "type" : "Level",
-        "mode" : level.mode,
-        "alphabetJson" : level.alphabet,
-        "transformTestsJson" : level.transform_tests,
-        "correctExamplesJson" : level.correct_examples,
-        "wrongExamplesJson" : level.wrong_examples,
-        "twoTapes" : level.double_tape
+        "name": level.name,
+        "description": level.description,
+        "detailedDescription": level.detailed_description,
+        "objective": level.objective,
+        "type": "Level",
+        "mode": level.mode,
+        "alphabetJson": level.alphabet,
+        "transformTestsJson": level.transform_tests,
+        "correctExamplesJson": level.correct_examples,
+        "wrongExamplesJson": level.wrong_examples,
+        "twoTapes": level.double_tape
     }
     return create_workshop_item(RequestJson)
 
 def upload_machine(machine):
     debug_requests("upload_machine")
-
     if isinstance(machine, dict):
         name = machine.get("name")
         description = machine.get("description", "")
@@ -311,7 +295,6 @@ def upload_machine(machine):
         alphabet = getattr(machine, "alphabet", ["_"])
         nodes = getattr(machine, "nodes", [])
         connections = getattr(machine, "connections", [])
-
     RequestJson = {
         "name": name,
         "description": description,
@@ -324,12 +307,10 @@ def upload_machine(machine):
 
 def submit_leaderboard(level_name: str, time_seconds: float, node_count: int, connection_count: int):
     debug_requests("submit_leaderboard")
-
     headers = get_auth_headers()
     if "Authorization" not in headers or not headers["Authorization"]:
         print("Not authenticated; cannot submit leaderboard.")
         return False, "Not authenticated"
-
     payload = {
         "levelName": level_name,
         "PlayerName": get_username(),
@@ -337,16 +318,8 @@ def submit_leaderboard(level_name: str, time_seconds: float, node_count: int, co
         "nodeCount": node_count,
         "connectionCount": connection_count,
     }
-
     try:
-        r = requests.post(
-            LEADERBOARD_URL,
-            headers=headers,
-            json=payload,
-            verify=VERIFY_SSL,
-            timeout=7,
-        )
-
+        r = requests.post(LEADERBOARD_URL, headers=headers, json=payload, verify=VERIFY_SSL, timeout=7)
         if r.status_code in (200, 201):
             try:
                 return True, r.json()
@@ -368,7 +341,6 @@ def submit_leaderboard(level_name: str, time_seconds: float, node_count: int, co
             msg = f"Leaderboard submit failed ({r.status_code}): {r.text}"
             print(msg)
             return False, msg
-
     except Exception as e:
         print("Leaderboard submission failed:", e)
         return False, "Unexpected error while submitting to leaderboard"
@@ -377,36 +349,20 @@ def submit_leaderboard(level_name: str, time_seconds: float, node_count: int, co
 def get_leaderboard(level_name: str):
     debug_requests("get_leaderboard")
     headers = get_auth_headers()
-
-    params = {
-        "Player": "false",
-        "levelName": level_name
-    }
-
+    params = {"Player": "false", "levelName": level_name}
     try:
-        r = requests.get(
-            LEADERBOARD_URL,
-            headers=headers,
-            params=params,
-            verify=VERIFY_SSL,
-            timeout=7
-        )
-
+        r = requests.get(LEADERBOARD_URL, headers=headers, params=params, verify=VERIFY_SSL, timeout=7)
         if r.status_code == 200:
             return r.json()
-
         elif r.status_code == 429:
             print("Rate limit hit on leaderboard request")
             return None
-
         elif r.status_code == 401:
             print("Unauthorized while requesting leaderboard")
             return None
-
         else:
             print("Leaderboard bad status:", r.status_code, r.text)
             return None
-
     except Exception as e:
         print("Error requesting leaderboard:", e)
         return None
@@ -437,7 +393,6 @@ def workshopitem_to_object(item_json):
             "double_tape": item_json.get("twoTapes", False)
         }
         return Level.Level.from_dict(level_data)
-
     elif item_type == "Machine":
         machine_data = {
             "name": item_json.get("name", "Unnamed Machine"),
@@ -447,7 +402,6 @@ def workshopitem_to_object(item_json):
             "connections": ensure_parsed(item_json.get("connectionsJson"))
         }
         return TuringMachine.TuringMachine.from_dict(machine_data)
-
     else:
         print(f"Unknown workshop item type: {item_type}")
         return None
@@ -524,7 +478,7 @@ def get_lobbies(include_started: bool = False):
         print("Failed to fetch lobbies:", e)
     return []
 
-def create_lobby(selected_level_id: int, name: str, max_players: int  ,password: str = None):
+def create_lobby(selected_level_id: int, name: str, max_players: int, password: str = None):
     debug_requests("create_lobby")
     headers = get_auth_headers()
     params = {"selectedLevelId": selected_level_id, "name": name, "max_players": max_players}
@@ -561,8 +515,21 @@ from signalrcore.hub_connection_builder import HubConnectionBuilder
 hub_connection = None
 
 
-def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left=None, on_lobby_deleted=None,
-                    on_player_kicked=None, on_lobby_started=None, on_environment_synced=None, on_node_proposed=None, on_connection_proposed=None,on_delete_proposed=None, on_chat_message_received=None):
+def connect_signalr(
+    on_lobby_created=None,
+    on_player_joined=None,
+    on_player_left=None,
+    on_lobby_deleted=None,
+    on_player_kicked=None,
+    on_lobby_started=None,
+    on_environment_synced=None,
+    on_node_proposed=None,
+    on_connection_proposed=None,
+    on_delete_proposed=None,
+    on_chat_message_received=None,
+    on_node_drag_proposed=None,
+    on_connection_edit_proposed=None,
+):
     global hub_connection
 
     HUB_URL = LOBBY_URL.replace("/lobbies", "/hubs/lobby")
@@ -600,6 +567,10 @@ def connect_signalr(on_lobby_created=None, on_player_joined=None, on_player_left
             hub_connection.on("DeleteProposed", lambda args: on_delete_proposed(args[0]))
         if on_chat_message_received:
             hub_connection.on("ChatMessageReceived", lambda args: on_chat_message_received(args[0]))
+        if on_node_drag_proposed:
+            hub_connection.on("NodeDragProposed", lambda args: on_node_drag_proposed(args[0]))
+        if on_connection_edit_proposed:
+            hub_connection.on("ConnectionEditProposed", lambda args: on_connection_edit_proposed(args[0]))
 
         hub_connection.start()
         print("Connected to LobbyHub SignalR")
@@ -709,6 +680,16 @@ def propose_delete(lobby_code, target_data):
         hub_connection.send("ProposeDelete", [payload])
         print(f"[SignalR] Sent delete proposal → {payload.keys()}")
 
+def propose_node_drag(data):
+    if hub_connection:
+        hub_connection.send("ProposeNodeDrag", [data])
+        print(f"[SignalR] Sent node drag proposal → nodeId={data.get('nodeId')} pos=({data.get('x')}, {data.get('y')})")
+
+def propose_connection_edit(data):
+    if hub_connection:
+        hub_connection.send("ProposeConnectionEdit", [data])
+        print(f"[SignalR] Sent connection edit proposal → {data.get('startId')}->{data.get('endId')}")
+
 def send_chat_message(lobby_code, sender, message):
     if not hub_connection:
         return
@@ -720,4 +701,3 @@ UPDATE_EVENT = pygame.USEREVENT + 1
 
 def trigger_event():
     pygame.event.post(pygame.event.Event(UPDATE_EVENT))
-

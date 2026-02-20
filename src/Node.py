@@ -62,24 +62,10 @@ class Node:
             pygame.draw.circle(screen, self.text_color, draw_pos, radius - 5, 2)
 
     def handle_event(self, event):
-        if event.type == pygame.MOUSEMOTION:
-            self.hovered = self.is_inside(event.pos)
-            if self.dragging:
-                mouse_pos = pygame.Vector2(event.pos)
-                self.pos = mouse_pos - self.drag_offset
-
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.is_inside(event.pos):
-                self.selected = True
-                self.dragging = True
-                self.drag_offset = pygame.Vector2(event.pos) - self.pos
-                return True
-            else:
-                self.selected = False
-
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            self.selected = False
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             self.dragging = False
-
         return False
 
     def add_connection(self, connection):

@@ -38,11 +38,29 @@ class Toolbox:
             pygame.draw.line(s, COLORS["text"], (x - 6, y - 6), (x + 6, y + 6), 3)
             pygame.draw.line(s, COLORS["text"], (x + 6, y - 6), (x - 6, y + 6), 3)
 
+        def icon_drag(s, x, y):
+            for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+                ex, ey = x + dx * 9, y + dy * 9
+                pygame.draw.line(s, COLORS["text"], (x, y), (ex, ey), 2)
+                tip = pygame.Vector2(ex, ey)
+                perp = pygame.Vector2(-dy, dx)
+                pygame.draw.polygon(s, COLORS["text"], [
+                    (int(tip.x), int(tip.y)),
+                    (int(tip.x - dx * 4 + perp.x * 3), int(tip.y - dy * 4 + perp.y * 3)),
+                    (int(tip.x - dx * 4 - perp.x * 3), int(tip.y - dy * 4 - perp.y * 3)),
+                ])
+
+        def icon_edit_connection(s, x, y):
+            points = [(x - 9, y + 4), (x - 3, y - 5), (x + 5, y - 3), (x + 9, y + 5)]
+            pygame.draw.lines(s, COLORS["text"], False, points, 2)
+
         self.tools = [
             ToolCell("node", "Node", icon_node, self.tool_radius, self.font, self.select_tool),
             ToolCell("end_node", "End Node", icon_end_node, self.tool_radius, self.font, self.select_tool),
             ToolCell("connect", "Connect", icon_connect, self.tool_radius, self.font, self.select_tool),
             ToolCell("delete", "Delete", icon_delete, self.tool_radius, self.font, self.select_tool),
+            ToolCell("drag", "Drag Node", icon_drag, self.tool_radius, self.font, self.select_tool),
+            ToolCell("edit_connection", "Edit Connection", icon_edit_connection, self.tool_radius, self.font, self.select_tool),
         ]
 
         self.bg_color = (45, 55, 85)
@@ -145,5 +163,9 @@ class Toolbox:
             pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_SIZEWE)
         elif self.current_tool == "delete":
             pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_NO)
+        elif self.current_tool == "drag":
+            pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_SIZEALL)
+        elif self.current_tool == "edit_connection":
+            pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
         else:
             pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)

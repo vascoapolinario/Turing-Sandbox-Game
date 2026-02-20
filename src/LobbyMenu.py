@@ -88,7 +88,9 @@ class LobbyMenu:
             on_node_proposed=self.on_node_proposed,
             on_connection_proposed=self.on_connection_proposed,
             on_delete_proposed=self.on_delete_proposed,
-            on_chat_message_received=self.on_chat_message_received
+            on_chat_message_received=self.on_chat_message_received,
+            on_node_drag_proposed=self.on_node_drag_proposed,
+            on_connection_edit_proposed=self.on_connection_edit_proposed
         )
         self.join_buttons = []
         self.current_lobby = None
@@ -1135,4 +1137,33 @@ class LobbyMenu:
         sender = data.get("sender", "Unknown")
         message = data.get("message", "")
         self.chat_messages.append((sender, message))
+        request_helper.trigger_event()
+
+
+    def on_node_drag_proposed(self, data):
+        code = data.get("lobbyCode")
+        if not self.environment or self.current_lobby.get("code") != code:
+            return
+
+        node_id = data.get("nodeId")
+        new_x = data.get("newX")
+        new_y = data.get("newY")
+        proposer = data.get("proposer")
+        print(f"[Multiplayer] Node drag proposed by {proposer} for node {node_id} to ({new_x}, {new_y})")
+
+        self.environment.apply_node_drag_proposal(node_id, new_x, new_y)
+        request_helper.trigger_event()
+
+    def on_connection_edit_proposed(self, data):
+        code = data.get("lobbyCode")
+        if not self.environment or self.current_lobby.get("code") != code:
+            return
+
+        connection_id = data.get("connectionId")
+        new_start_id = data.get("newStartId")
+        new_end_id = data.get("newEndId")
+        proposer = data.get("proposer")
+        print(f"[Multiplayer] Connection edit proposed by {proposer} for connection {connection_id} to ({new_start_id}->{new_end_id})")
+
+        self.environment.apply_connection_edit_proposal(connection_id, new_start_id, new_end_id)
         request_helper.trigger_event()
