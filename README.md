@@ -1,14 +1,14 @@
 # Turing Sandbox
 A game made with python using pygame to build and simulate turing machines
 
-📦Latest version (windows) download release at:
-- [https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/1.0.0](https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/1.0.0)
+Latest version (windows) download release at:
+- [https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/1.0.1](https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/1.0.1)
 
 If you have PyInstaller you can build the exe yourself by running the following command inside the src folder
 `PyInstaller main.py --onefile --noconsole --icon=assets/favicon.ico --add-data "assets/favicon.ico:assets"
 `
 
-🔗 View the workshop and other game details through the API dashboard available at:
+View the workshop and other game details through the API dashboard available at:
 - [https://vapoli.tech/#/TuringSandbox/dashboard](https://vapoli.tech/#/TuringSandbox/dashboard)
 
 Code for the API (Server) available at:
@@ -22,7 +22,7 @@ In this game preview you can see a level being solved, the level expects the use
 
 
 # Key Features
-## 🧩 Sandbox Mode
+## Sandbox Mode
 <img width="1906" height="991" alt="image" src="https://github.com/user-attachments/assets/14bdf3cc-3308-4e77-9417-3443724bc2b4" />
 
 - Create Turing Machines freely with no restrictions.
@@ -31,7 +31,7 @@ In this game preview you can see a level being solved, the level expects the use
 
 - Run, pause, and step through simulations.
 
-## 🎯 Level Mode
+## Level Mode
 <img width="1833" height="960" alt="image" src="https://github.com/user-attachments/assets/8e96076b-b17d-40ce-9e00-d0a6b33eee9a" />
 
 - Play levels that test your understanding of Turing Machines.
@@ -40,7 +40,7 @@ In this game preview you can see a level being solved, the level expects the use
 
 - Includes built-in examples and support for user-created levels.
 
-## 🕹️ Multiplayer
+## Multiplayer
 
 ![2025-10-2921-09-09-ezgif com-video-to-gif-converter (1)](https://github.com/user-attachments/assets/ef1b8198-961a-43f9-b4a3-66d7a7460198)
 
@@ -50,7 +50,7 @@ In this game preview you can see a level being solved, the level expects the use
 
 - More multiplayer modes and tools like competitively building machines are planned for future release.
 
-## 💾 Saving & Loading
+## Saving & Loading
 <img width="1769" height="965" alt="image" src="https://github.com/user-attachments/assets/1b9bd6b3-a160-475c-b14d-a333fbd5fb77" />
 
 
@@ -65,7 +65,7 @@ In this game preview you can see a level being solved, the level expects the use
 
 - Level progress is also saved using json
 
-## 🌐 Workshop
+## Workshop
 <img width="1877" height="959" alt="image" src="https://github.com/user-attachments/assets/8a6ad383-7a0b-4106-b183-434e5ebec9ad" />
 
 
@@ -75,7 +75,7 @@ In this game preview you can see a level being solved, the level expects the use
 
 - Requires login (handled through the in-game authentication popup).
 
-## 🧮 Double Tape Support
+## Double Tape Support
 <img width="1919" height="982" alt="image" src="https://github.com/user-attachments/assets/92f072ce-ae0b-4e6a-beeb-c43dd81390e8" />
 
 - Advanced levels and sandbox setups can use two tapes for more complex machines.
