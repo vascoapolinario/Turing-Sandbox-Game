@@ -4,6 +4,9 @@ A game made with python using pygame to build and simulate turing machines
 Latest version (windows) download release at:
 - [https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/1.0.1](https://github.com/vascoapolinario/Turing-Sandbox-Game/releases/tag/1.0.1)
 
+Latest Web version (reduced features) available at:
+- [https://vascoapolinario.github.io/Turing-Sandbox-Game/](https://vascoapolinario.github.io/Turing-Sandbox-Game/)
+
 If you have PyInstaller you can build the exe yourself by running the following command inside the src folder
 `PyInstaller main.py --onefile --noconsole --icon=assets/favicon.ico --add-data "assets/favicon.ico:assets"
 `
