@@ -1,0 +1,63 @@
+name: Download pygbag CDN assets for Discord Activity
+
+# This workflow downloads the two JavaScript files that are normally loaded
+# from the pygbag CDN (pygame-web.github.io) and commits local copies to the
+# repository.  Serving them from the same origin (GitHub Pages) means they
+# load via Discord's proxy without needing any external-domain permission.
+#
+# Run this workflow once after cloning / whenever you upgrade pygbag.
+# Trigger manually from the GitHub Actions tab  →  "Run workflow".
+on:
+  workflow_dispatch:   # manual trigger
+  push:
+    paths:
+      - 'index.html'   # also re-download if index.html changes (e.g. CDN version bump)
+
+permissions:
+  contents: write
+
+jobs:
+  download-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Read CDN URL from index.html
+        id: cdn
+        run: |
+          CDN=$(grep -oP "(?<=cdn : \")[^\"]*" index.html | head -1)
+          echo "cdn=$CDN" >> "$GITHUB_OUTPUT"
+          echo "Detected CDN: $CDN"
+
+      - name: Download pythons.js
+        run: |
+          CDN="${{ steps.cdn.outputs.cdn }}"
+          echo "Downloading ${CDN}pythons.js"
+          curl --fail --location --silent --show-error \
+               -o pythons.js \
+               "${CDN}pythons.js"
+          wc -c pythons.js
+
+      - name: Download browserfs.min.js
+        run: |
+          # Note: index.html has a double-slash in the CDN path for browserfs;
+          # we normalise it here.
+          CDN="${{ steps.cdn.outputs.cdn }}"
+          echo "Downloading ${CDN}browserfs.min.js"
+          curl --fail --location --silent --show-error \
+               -o browserfs.min.js \
+               "${CDN}browserfs.min.js"
+          wc -c browserfs.min.js
+
+      - name: Commit downloaded assets
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pythons.js browserfs.min.js
+          if git diff --cached --quiet; then
+            echo "No changes to commit – assets are already up to date."
+          else
+            git commit -m "chore: update local pygbag CDN assets (pythons.js, browserfs.min.js)"
+            git push
+          fi

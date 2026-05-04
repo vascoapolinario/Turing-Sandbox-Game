@@ -248,6 +248,138 @@ config = {
 
 </script>
 
+    <!-- =====================================================================
+         DISCORD ACTIVITY SUPPORT
+         =====================================================================
+         This section enables the game to run as a Discord Embedded Activity.
+
+         REQUIRED SETUP in Discord Developer Portal
+         (https://discord.com/developers/applications → Your App → Activities):
+           1. Enable "Activities" for your app and note your Application/Client ID.
+           2. Under "URL Mappings", add:
+                Prefix : pygame-web
+                Target : https://pygame-web.github.io
+           3. Replace YOUR_DISCORD_CLIENT_ID below with your actual Client ID.
+
+         HOW IT WORKS
+         - Detects when the page is running inside Discord's Activity iframe.
+         - Patches fetch() / XHR early (synchronously) so every request to the
+           pygbag CDN is rewritten to go through Discord's proxy instead.
+         - Updates config.cdn so Python-package fetches also use the proxy.
+         - Additionally loads the official Discord Embedded App SDK for full
+           patchUrlMappings support (handles edge-cases the manual patch misses).
+         ===================================================================== -->
+    <script type="application/javascript">
+    (function () {
+        'use strict';
+
+        // ── Discord detection ────────────────────────────────────────────────
+        function detectDiscord() {
+            try {
+                if (window.parent === window) return false;
+                // Discord appends frame_id to the Activity URL
+                if (window.location.search.indexOf('frame_id') !== -1) return true;
+                var ref = document.referrer || '';
+                if (ref.indexOf('discord') !== -1) return true;
+                var origins = window.location.ancestorOrigins;
+                if (origins) {
+                    for (var i = 0; i < origins.length; i++) {
+                        if (origins[i].indexOf('discord') !== -1) return true;
+                    }
+                }
+            } catch (e) { /* cross-origin access may throw */ }
+            return false;
+        }
+
+        window._isDiscordActivity = detectDiscord();
+        if (!window._isDiscordActivity) return;
+
+        console.log('[Discord Activity] Detected – patching CDN URLs through Discord proxy');
+
+        // ── URL rewriting constants ──────────────────────────────────────────
+        // Must match the URL Mapping prefix registered in Discord Developer Portal.
+        var CDN_ORIGIN  = 'https://pygame-web.github.io';
+        var PROXY_PREFIX = '/pygame-web';   // ← same as the Prefix you registered
+
+        // Rewrite an absolute pygbag CDN URL → relative proxy path
+        function rewrite(url) {
+            if (typeof url === 'string' && url.indexOf(CDN_ORIGIN) === 0) {
+                return PROXY_PREFIX + url.slice(CDN_ORIGIN.length);
+            }
+            return url;
+        }
+
+        // ── Patch fetch() ────────────────────────────────────────────────────
+        var _fetch = window.fetch.bind(window);
+        window.fetch = function (resource, init) {
+            if (typeof resource === 'string') {
+                resource = rewrite(resource);
+            } else if (resource instanceof Request &&
+                       resource.url.indexOf(CDN_ORIGIN) === 0) {
+                resource = new Request(rewrite(resource.url), resource);
+            }
+            return _fetch(resource, init);
+        };
+
+        // ── Patch XMLHttpRequest ─────────────────────────────────────────────
+        var _xhrOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function (method, url) {
+            arguments[1] = rewrite(url);
+            return _xhrOpen.apply(this, arguments);
+        };
+
+        // ── Update config.cdn ────────────────────────────────────────────────
+        // config is defined in the block immediately above this script, so
+        // this assignment runs before pythons.js (async defer) consumes it.
+        if (typeof config !== 'undefined') {
+            config.cdn = PROXY_PREFIX + '/archives/0.9/';
+        }
+
+        console.log('[Discord Activity] fetch / XHR patched; config.cdn →', PROXY_PREFIX + '/archives/0.9/');
+    })();
+    </script>
+
+    <!-- Discord Embedded App SDK (async, loaded only inside Discord) -->
+    <!-- Replace YOUR_DISCORD_CLIENT_ID with your actual Discord Application ID -->
+    <script type="application/javascript">
+    (async function () {
+        if (!window._isDiscordActivity) return;
+
+        var DISCORD_CLIENT_ID = 'YOUR_DISCORD_CLIENT_ID'; // ← replace this
+
+        try {
+            // Load the official Discord Embedded App SDK from jsDelivr CDN
+            await new Promise(function (resolve, reject) {
+                var s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/@discord/embedded-app-sdk@1.7.0/output/discord-embedded-app-sdk.umd.min.js';
+                s.onload  = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+            });
+
+            var sdk = new DiscordSDK(DISCORD_CLIENT_ID);
+            await sdk.ready();
+
+            // Tell the SDK to rewrite pygbag CDN requests through Discord's proxy.
+            // The prefix here must match the mapping you registered in the Portal.
+            await sdk.commands.patchUrlMappings([
+                { prefix: '/pygame-web', target: 'https://pygame-web.github.io' }
+            ]);
+
+            // Keep config.cdn in sync with what patchUrlMappings will produce
+            if (typeof config !== 'undefined') {
+                config.cdn = '/pygame-web/archives/0.9/';
+            }
+
+            console.log('[Discord Activity] SDK ready – CDN fully proxied');
+        } catch (err) {
+            // Non-fatal: the manual fetch/XHR patch above provides a fallback
+            console.warn('[Discord Activity] SDK setup warning:', err && err.message || err);
+        }
+    })();
+    </script>
+    <!-- END DISCORD ACTIVITY SUPPORT ======================================== -->
+
     <title>web</title>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
